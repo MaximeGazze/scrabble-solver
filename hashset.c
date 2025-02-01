@@ -26,9 +26,7 @@ struct hashset *hashset_create(size_t capacity) {
 unsigned long hash(const char *string) {
     unsigned long hash = 5381;
 
-    const char *current_char = string;
-
-    while (*current_char++) {
+    for (const char *current_char = string; *current_char; current_char++) {
         hash = ((hash << 5) + hash) * *current_char;
     }
 

@@ -8,7 +8,23 @@
 #include <regex.h>
 #include <assert.h>
 
-extern const enum board_tile bonus_board[BOARD_SIZE][BOARD_SIZE];
+const enum board_tile bonus_board[BOARD_SIZE][BOARD_SIZE] = {
+    {TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, TripleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord},
+    {Empty, DoubleWord, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, DoubleWord, Empty},
+    {Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty},
+    {DoubleLetter, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, DoubleLetter},
+    {Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty},
+    {Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty},
+    {Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, Empty},
+    {TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord},
+    {Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, Empty},
+    {Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty},
+    {Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty},
+    {DoubleLetter, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, DoubleLetter},
+    {Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty},
+    {Empty, DoubleWord, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, DoubleWord, Empty},
+    {TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, TripleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord},
+};
 
 struct hashset *build_wordlist_set(const char *wordlist) {
     struct hashset *set = hashset_create(SET_CAPACITY);
@@ -32,8 +48,8 @@ struct hashset *build_wordlist_set(const char *wordlist) {
     return set;
 }
 
-struct vec *find_all_words(const char board[BOARD_SIZE][BOARD_SIZE]) {
-    struct vec *words = vec_initialize();
+struct vector *find_all_words(const char board[BOARD_SIZE][BOARD_SIZE]) {
+    struct vector *words = create_vector();
 
     for (size_t i = 0; i < BOARD_SIZE; i++) {
         for (size_t j = 0; j < BOARD_SIZE; j++) {
@@ -70,7 +86,7 @@ struct vec *find_all_words(const char board[BOARD_SIZE][BOARD_SIZE]) {
                         bw->length++;
                     }
 
-                    vec_add(words, bw);
+                    vector_push_back(words, bw);
                 }
 
                 // check for new horizontal word
@@ -105,7 +121,7 @@ struct vec *find_all_words(const char board[BOARD_SIZE][BOARD_SIZE]) {
                         bw->length++;
                     }
 
-                    vec_add(words, bw);
+                    vector_push_back(words, bw);
                 }
             }
         }
@@ -393,9 +409,6 @@ char *build_perpendicular_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
     int letter_i = bw->is_horizontal ? bw->i : bw->i + index;
     int letter_j = bw->is_horizontal ? bw->j + index : bw->j;
 
-    /* int i = bw->is_horizontal ? bw->i : bw->i + index; */
-    /* int j = bw->is_horizontal ? bw->j + index : bw->j; */
-
     int start_index = is_horizontal ? letter_j : letter_i;
     int end_index = is_horizontal ? letter_j : letter_i;
 
@@ -545,58 +558,10 @@ char *build_perpendicular_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
     return regex_string;
 }
 
-/* bool validate_word(const char *wordlist, const char *word) { */
-/*     printf("Now validating word %s\n", word); // DEBUG */
-/*     regex_t regex; */
-/*     regmatch_t pmatch[1]; */
-
-/*     char regex_string[BOARD_SIZE + 3]; */
-/*     /\* char *regex_string = malloc(strlen(word) + 4); *\/ */
-/*     /\* if (regex_string == NULL) { *\/ */
-/*     /\*     perror("malloc"); *\/ */
-/*     /\*     exit(EXIT_FAILURE); *\/ */
-/*     /\* } *\/ */
-
-/*     regex_string[0] = '^'; */
-/*     strncpy(regex_string + 1, word, strlen(word)); */
-/*     regex_string[strlen(word) + 1] = '$'; */
-/*     regex_string[strlen(word) + 2] = '\0'; */
-
-/*     printf("regex_string: %s\n", regex_string); // DEBUG */
-
-/*     if (regcomp(&regex, regex_string, REG_NEWLINE | REG_EXTENDED)) { */
-/*         fprintf(stderr, "could not compile regex\n"); */
-/*         exit(EXIT_FAILURE); */
-/*     } */
-
-/*     bool is_valid; */
-
-/*     int result = regexec(&regex, wordlist, 1, pmatch, 0); */
-/*     if (result == 0) { */
-/*         is_valid = true; */
-/*         printf("Match found: %.*s\n", pmatch[0].rm_eo - pmatch[0].rm_so, wordlist + pmatch[0].rm_so); // DEBUG */
-/*     } else if (result == REG_NOMATCH) { */
-/*         is_valid = false; */
-/*         printf("No match found\n"); // DEBUG */
-/*     } else { */
-/*         char msgbuf[100]; */
-/*         regerror(result, &regex, msgbuf, sizeof(msgbuf)); */
-/*         fprintf(stderr, "Regex match failed: %s\n", msgbuf); */
-/*         exit(EXIT_FAILURE); */
-/*     } */
-
-/*     /\* free(regex_string); *\/ */
-/*     regfree(&regex); */
-
-/*     return is_valid; */
-/* } */
-
 struct play *build_play(const char board[BOARD_SIZE][BOARD_SIZE],
                         struct hashset *wordlist_set,
                         const char hand[HAND_SIZE],
                         struct board_word *bw) {
-    /* printf("Now building play with bw: %s %d %d %d %c\n", bw->word, bw->length, bw->i, bw->j, bw->is_horizontal ? 'H' : 'V'); // DEBUG */
-
     struct play *play = malloc(sizeof(struct play));
     if (play == NULL) {
         perror("malloc");
@@ -619,7 +584,6 @@ struct play *build_play(const char board[BOARD_SIZE][BOARD_SIZE],
     for (int bw_index = 0; bw_index < bw->length; bw_index++) {
         // if the tile is not present on the board, we add it to our play
         if (board[i][j] == '\0') {
-            /* printf("Adding tile %c at board[%ld][%ld] play_index=%ld\n", bw->word[index], i, j, play_index); // DEBUG */
             if (play_index == HAND_SIZE) {
                 free_play(play);
                 return NULL;
@@ -656,11 +620,6 @@ void free_play(struct play *p) {
     free(p);
 }
 
-void free_board_word(struct board_word *bw) {
-    free(bw->word);
-    free(bw);
-}
-
 bool validate_play_tile_horizontally(const char board[BOARD_SIZE][BOARD_SIZE],
                                      struct hashset *wordlist_set,
                                      struct play_tile *tile) {
@@ -674,7 +633,7 @@ bool validate_play_tile_horizontally(const char board[BOARD_SIZE][BOARD_SIZE],
     }
 
     // if there are no new words created by this tile, the tile is valid
-    if (j == BOARD_SIZE - 1 || board[i][j + 1] == '\0') {
+    if (j == BOARD_SIZE - 1 || (board[i][j + 1] == '\0' && j + 1 != tile->j)) {
         return true;
     }
 
@@ -693,8 +652,6 @@ bool validate_play_tile_horizontally(const char board[BOARD_SIZE][BOARD_SIZE],
 
     buffer[index] = '\0';
 
-    printf("validate_play_tile_horizontally word copied is: %s\n", buffer); // DEBUG
-
     return hashset_contains(wordlist_set, buffer);
 }
 
@@ -711,7 +668,7 @@ bool validate_play_tile_vertically(const char board[BOARD_SIZE][BOARD_SIZE],
     }
 
     // if there are no new words created by this tile, the tile is valid
-    if (i == BOARD_SIZE - 1 || board[i + 1][j] == '\0') {
+    if (i == BOARD_SIZE - 1 || (board[i + 1][j] == '\0' && i + 1 != tile->i)) {
         return true;
     }
 
@@ -729,8 +686,6 @@ bool validate_play_tile_vertically(const char board[BOARD_SIZE][BOARD_SIZE],
     }
 
     buffer[index] = '\0';
-
-    printf("validate_play_tile_vertically word copied is: %s\n", buffer); // DEBUG
 
     return hashset_contains(wordlist_set, buffer);
 }
@@ -754,7 +709,7 @@ bool validate_play_horizontally(const char board[BOARD_SIZE][BOARD_SIZE],
             for (size_t tile_index = 0; tile_index < play->size; tile_index++) {
                 struct play_tile pt = play->tiles[tile_index];
 
-                if (pt.i == i && pt.j == j) {
+                if (pt.i == i && pt.j == j - 1) {
                     found_tile = true;
                     break;
                 }
@@ -797,16 +752,12 @@ bool validate_play_horizontally(const char board[BOARD_SIZE][BOARD_SIZE],
 
     buffer[index] = '\0';
 
-    printf("validate_play_horizontally word copied is: %s\n", buffer); // DEBUG
-
     return hashset_contains(wordlist_set, buffer);
 }
 
 bool validate_play_vertically(const char board[BOARD_SIZE][BOARD_SIZE],
                               struct hashset *wordlist_set,
                               struct play *play) {
-    printf("Now validating with validate_play_vertically for word %s\n", play->word);
-    
     if (play->size == 0) {
         return false;
     }
@@ -866,8 +817,6 @@ bool validate_play_vertically(const char board[BOARD_SIZE][BOARD_SIZE],
 
     buffer[index] = '\0';
 
-    printf("validate_play_vertically word copied is: %s\n", buffer); // DEBUG
-
     return hashset_contains(wordlist_set, buffer);
 }
 
@@ -875,10 +824,7 @@ bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
                    struct hashset *wordlist_set,
                    const char hand[HAND_SIZE],
                    struct play *play) {
-    printf("Now validating play for word: %s\n", play->word);
-    
     if (play->size == 0) {
-        printf("play size is 0\n"); // DEBUG
         return false;
     }
 
@@ -892,7 +838,6 @@ bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
         struct play_tile pt = play->tiles[index];
 
         if (pt.i < 0 || pt.i > BOARD_SIZE - 1 || pt.j < 0 || pt.j > BOARD_SIZE - 1) {
-            printf("play has out of bound tiles\n"); // DEBUG
             return false;
         }
 
@@ -907,7 +852,6 @@ bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
 
     // if play is_horizontal doesn't match with our values found, the play is invalid
     if (play->is_horizontal != is_horizontal && !play->is_horizontal != is_vertical) {
-        printf("play is_horizontal is invalid %b %b %b %b\n", play->is_horizontal, is_horizontal, play->is_horizontal, is_vertical); // DEBUG
         return false;
     }
 
@@ -947,13 +891,11 @@ bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
         }
 
         if (!pt_removed) {
-            printf("play tile %c was not present in the hand %.*s\n", pt->letter, HAND_SIZE, hand); // DEBUG
             return false;
         }
 
         // check that all tiles are placed on unplayed board tiles
         if (board[pt->i][pt->j] != '\0') {
-            printf("tile is played on invalid square\n"); // DEBUG
             return false;
         }
     }
@@ -961,25 +903,21 @@ bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
     if (play->is_horizontal) {
         for (size_t i = 0; i < play->size; i++) {
             if (!validate_play_tile_vertically(board, wordlist_set, &play->tiles[i])) {
-                printf("validate_play_tile_vertically failed\n"); // DEBUG
                 return false;
             }
         }
 
         if (!validate_play_horizontally(board, wordlist_set, play)) {
-            printf("validate_play_horizontally failed\n"); // DEBUG
             return false;
         }
     } else {
         for (size_t i = 0; i < play->size; i++) {
             if (!validate_play_tile_horizontally(board, wordlist_set, &play->tiles[i])) {
-                printf("validate_play_tile_horizontally failed\n"); // DEBUG
                 return false;
             }
         }
 
         if (!validate_play_vertically(board, wordlist_set, play)) {
-            printf("validate_play_vertically failed\n"); // DEBUG
             return false;
         }
     }
@@ -987,12 +925,12 @@ bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
     return true;
 }
 
-struct vec *find_all_extensions(const char board[BOARD_SIZE][BOARD_SIZE],
-                                const char *wordlist,
-                                struct hashset *wordlist_set,
-                                const char hand[HAND_SIZE],
-                                struct board_word *bw) {
-    struct vec *plays = vec_initialize();
+struct vector *find_all_extension_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                        const char *wordlist,
+                                        struct hashset *wordlist_set,
+                                        const char hand[HAND_SIZE],
+                                        struct board_word *bw) {
+    struct vector *plays = create_vector();
 
     char *regex_string = build_extension_regex_string(board, hand, bw);
 
@@ -1010,8 +948,6 @@ struct vec *find_all_extensions(const char board[BOARD_SIZE][BOARD_SIZE],
         regoff_t regex_offset_start = pmatch[0].rm_so;
         regoff_t regex_offset_end = pmatch[0].rm_eo;
         regoff_t regex_length = regex_offset_end - regex_offset_start;
-
-        printf("regex: %d %d \n", regex_offset_start, regex_offset_end); // DEBUG
 
         assert(regex_length > 0 && regex_length < BOARD_SIZE);
 
@@ -1039,7 +975,7 @@ struct vec *find_all_extensions(const char board[BOARD_SIZE][BOARD_SIZE],
 
                 struct play *play = build_play(board, wordlist_set, hand, &ext_bw);
                 if (play != NULL) {
-                    vec_add(plays, play);
+                    vector_push_back(plays, play);
                 }
 
                 word_occurence_ptr = strstr(word_occurence_ptr + 1, bw->word);
@@ -1053,16 +989,16 @@ struct vec *find_all_extensions(const char board[BOARD_SIZE][BOARD_SIZE],
     return plays;
 }
 
-struct vec *find_all_hooks(const char board[BOARD_SIZE][BOARD_SIZE],
-                           const char *wordlist,
-                           struct hashset *wordlist_set,
-                           const char hand[HAND_SIZE],
-                           struct play *play) {
+struct vector *find_all_hook_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                   const char *wordlist,
+                                   struct hashset *wordlist_set,
+                                   const char hand[HAND_SIZE],
+                                   struct play *play) {
     assert(play->size == 1);
 
     struct play_tile pt = play->tiles[0];
 
-    struct vec *plays = vec_initialize();
+    struct vector *plays = create_vector();
     
     // for horizontal, check tiles above and under on the board
     // for vertical, check tiles left and right on the board
@@ -1071,7 +1007,6 @@ struct vec *find_all_hooks(const char board[BOARD_SIZE][BOARD_SIZE],
          ((pt.i != 0 && board[pt.i - 1][pt.j] != '\0') || (pt.i != BOARD_SIZE - 1 && board[pt.i + 1][pt.j] != '\0'))) ||
         (!play->is_horizontal &&
          ((pt.j != 0 && board[pt.i][pt.j - 1] != '\0') || (pt.j != BOARD_SIZE - 1 && board[pt.i][pt.j + 1] != '\0')))) {
-        printf("Detected interference for hook on play: %s\n", play->word); // DEBUG
         return plays;
     }
 
@@ -1122,7 +1057,7 @@ struct vec *find_all_hooks(const char board[BOARD_SIZE][BOARD_SIZE],
                 if (hook_bw.length <= HAND_SIZE) {
                     struct play *play = build_play(board, wordlist_set, hand, &hook_bw);
                     if (play != NULL) {
-                        vec_add(plays, play);
+                        vector_push_back(plays, play);
                     }
                 }
 
@@ -1137,12 +1072,12 @@ struct vec *find_all_hooks(const char board[BOARD_SIZE][BOARD_SIZE],
     return plays;
 }
 
-struct vec *find_all_perpendiculars(const char board[BOARD_SIZE][BOARD_SIZE],
-                                    const char *wordlist,
-                                    struct hashset *wordlist_set,
-                                    const char hand[HAND_SIZE],
-                                    struct board_word *bw) {
-    struct vec *plays = vec_initialize();
+struct vector *find_all_perpendicular_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                            const char *wordlist,
+                                            struct hashset *wordlist_set,
+                                            const char hand[HAND_SIZE],
+                                            struct board_word *bw) {
+    struct vector *plays = create_vector();
 
     bool is_horizontal = !bw->is_horizontal;
     int i = bw->i;
@@ -1157,8 +1092,15 @@ struct vec *find_all_perpendiculars(const char board[BOARD_SIZE][BOARD_SIZE],
         bool has_char_left = j != 0 && board[i][j - 1] != '\0';
         bool has_char_right = j != BOARD_SIZE - 1 && board[i][j + 1] != '\0';
 
-        if ((bw->is_horizontal && (has_char_above || has_char_below))
-            || (!bw->is_horizontal && (has_char_left || has_char_right))) {
+        // FIXME refactor this shit
+        if ((!is_horizontal && (has_char_above || has_char_below))
+            || (is_horizontal && (has_char_left || has_char_right))) {
+            if (bw->is_horizontal) {
+                j++;
+            } else {
+                i++;
+            }
+            
             continue;
         }
 
@@ -1181,47 +1123,35 @@ struct vec *find_all_perpendiculars(const char board[BOARD_SIZE][BOARD_SIZE],
 
             assert(regex_length > 0 && regex_length < BOARD_SIZE);
 
-            // if the tile count for the play is over the hand size, we discard it
-            if (regex_length - bw->length != 0 && regex_length - bw->length <= HAND_SIZE) {
-                // copy the word to a buffer
-                char perpendicular_word[BOARD_SIZE];
-                strncpy(perpendicular_word, regex_wordlist_ptr + regex_offset_start, regex_length);
-                perpendicular_word[regex_length] = '\0';
+            // copy the word to a buffer
+            char perpendicular_word[BOARD_SIZE];
+            strncpy(perpendicular_word, regex_wordlist_ptr + regex_offset_start, regex_length);
+            perpendicular_word[regex_length] = '\0';
 
-                char *char_occurence_ptr = strchr(perpendicular_word, play_char);
-                /* char *word_occurence_ptr = strstr(extended_word, bw->word); */
+            char *char_occurence_ptr = strchr(perpendicular_word, play_char);
 
-                assert(char_occurence_ptr != NULL);
+            assert(char_occurence_ptr != NULL);
 
-                while (char_occurence_ptr != NULL) {
-                    int extension_offset = perpendicular_word - char_occurence_ptr;
+            while (char_occurence_ptr != NULL) {
+                int extension_offset = perpendicular_word - char_occurence_ptr;
 
-                    int i = is_horizontal ? bw->i + char_index : bw->i + extension_offset;
-                    int j = is_horizontal ? bw->j + extension_offset : bw->j + char_index;
+                int i = is_horizontal ? bw->i + char_index : bw->i + extension_offset;
+                int j = is_horizontal ? bw->j + extension_offset : bw->j + char_index;
 
-                    if (bw->is_horizontal) {
-                        j += char_index;
-                    } else {
-                        i += char_index;
-                    }
+                struct board_word perp_bw = {
+                    .word = perpendicular_word,
+                    .length = regex_length,
+                    .i = i,
+                    .j = j,
+                    .is_horizontal = is_horizontal,
+                };
 
-                    struct board_word perp_bw = {
-                        .word = perpendicular_word,
-                        .length = regex_length,
-                        .i = i,
-                        .j = j,
-                        .is_horizontal = is_horizontal,
-                    };
-
-                    printf(" ===> bw: %s %d %d %d %c\n", perp_bw.word, perp_bw.length, perp_bw.i, perp_bw.j, is_horizontal ? 'H' : 'V'); // DEBUG
-
-                    struct play *play = build_play(board, wordlist_set, hand, &perp_bw);
-                    if (play != NULL) {
-                        vec_add(plays, play);
-                    }
-
-                    char_occurence_ptr = strstr(char_occurence_ptr + 1, bw->word);
+                struct play *play = build_play(board, wordlist_set, hand, &perp_bw);
+                if (play != NULL) {
+                    vector_push_back(plays, play);
                 }
+
+                char_occurence_ptr = strstr(char_occurence_ptr + 1, bw->word);
             }
         }
 
@@ -1238,9 +1168,289 @@ struct vec *find_all_perpendiculars(const char board[BOARD_SIZE][BOARD_SIZE],
     return plays;
 }
 
-struct vec *find_all_parallels(const char board[BOARD_SIZE][BOARD_SIZE],
-                               const char *wordlist) {
-    // TODO
+struct pair *create_pair(void *first, void *second) {
+    struct pair *p = malloc(sizeof(struct pair));
+    if (p == NULL) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
+    p->first = first;
+    p->second = second;
+
+    return p;
+}
+
+int hand_index_of(const char *hand, char letter) {
+    for (int index = 0; hand[index] != '\0'; index++) {
+        if (hand[index] == letter) {
+            return index;
+        }
+    }
+
+    return -1;
+}
+
+void hand_remove_at(char *hand, int index) {
+    assert((size_t)index < strlen(hand) && index >= 0); // DEBUG
+
+    char *current_char = hand + index;
+
+    while (*current_char) {
+        *current_char = *(current_char + 1);
+        current_char++;
+    }
+}
+
+struct vector *find_all_parallel_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                       struct hashset *wordlist_set,
+                                       const char hand[HAND_SIZE],
+                                       struct board_word *bw,
+                                       struct board_play_tiles *one_tile_plays) {
+    struct vector *plays = create_vector();
+
+    for (int offset = -1; offset < 2; offset += 2) {
+        int start_index = bw->is_horizontal ? bw->j : bw->i;
+        int end_index = start_index + bw->length;
+
+        int i = bw->is_horizontal ? bw->i + offset : bw->i;
+        int j = bw->is_horizontal ? bw->j : bw->j + offset;
+
+        /* if (board_play_tiles_at(one_tile_plays, i, j) != NULL) { */
+        // FIXME refactor this (its duplicated code)
+        // rewind as far back as possible
+        while (start_index > 0) {
+            // if we rewinded HAND_SIZE -1 times, we break
+            if ((bw->is_horizontal && j - start_index == HAND_SIZE - 1)
+                || (!bw->is_horizontal && i - start_index == HAND_SIZE - 1)) {
+                break;
+            }
+
+            // if we encounter a character that is non null, we add a padding of 1 between it and break
+            if ((bw->is_horizontal && board[i][start_index] != '\0')
+                || (!bw->is_horizontal && board[start_index][j] != '\0')) {
+                start_index += 2;
+                break;
+            }
+
+            start_index--;
+        }
+        /* } */
+
+        // go over each tile and try to build words
+        for (int index = start_index; index < end_index; index++) {
+            struct vector *stack = create_vector();
+
+            bool in_word_range = bw->is_horizontal
+                ? index >= bw->j && index <= bw->j + bw->length - 1
+                : index >= bw->i && index <= bw->i + bw->length - 1;
+
+            struct board_word *init_bw = create_board_word();
+
+            init_bw->length = 0;
+            init_bw->i = bw->is_horizontal ? i : index;
+            init_bw->j = bw->is_horizontal ? index : j;
+            init_bw->is_horizontal =  bw->is_horizontal;
+
+            struct pair *init_pair = create_pair(init_bw, strndup(hand, HAND_SIZE));
+
+            vector_push_back(stack, init_pair);
+
+            while (vector_size(stack)) {
+                struct pair *p = vector_back(stack);
+                struct board_word *current_bw = p->first;
+                char *current_hand = p->second;
+                vector_pop_back(stack);
+
+                int current_i = bw->is_horizontal ? i : index + current_bw->length;
+                int current_j = bw->is_horizontal ? index + current_bw->length : j;
+
+                int min_word_length = (bw->is_horizontal ? bw->j : bw->i) - index + 1;
+
+                if (min_word_length < 2) {
+                    min_word_length = 2;
+                }
+
+                if (current_bw->length >= min_word_length) {
+                    struct play *play = build_play(board, wordlist_set, hand, current_bw);
+                    if (play != NULL) {
+                        vector_push_back(plays, play);
+                    }
+                }
+
+                bool has_char_before = index != 0 && (bw->is_horizontal
+                                                      ? board[current_i][current_j - 1]
+                                                      : board[current_i - 1][current_j]) != '\0';
+                bool has_char_here = board[current_i][current_j] != '\0';
+                bool has_char_after = index != BOARD_SIZE - 1 && (bw->is_horizontal
+                                                                  ? board[current_i][current_j + 1]
+                                                                  : board[current_i + 1][current_j]) != '\0';
+
+                if (current_bw->length < HAND_SIZE && !has_char_before && !has_char_here && !has_char_after) {
+                    if (in_word_range) {
+                        struct board_play_tiles_node *bptn = board_play_tiles_at(one_tile_plays, current_i, current_j);
+
+                        while (bptn != NULL) {
+                            struct play_tile *pt = bptn->pt;
+
+                            int delete_index = hand_index_of(current_hand, pt->is_wildcard ? '*' : pt->letter);
+                            if (delete_index != -1) {
+                                struct board_word *new_bw = create_board_word();
+
+                                strncpy(new_bw->word, current_bw->word, current_bw->length);
+                                new_bw->word[current_bw->length] = pt->letter;
+                                new_bw->word[current_bw->length + 1] = '\0';
+
+                                new_bw->length = current_bw->length + 1;
+                                new_bw->i = current_bw->i;
+                                new_bw->j = current_bw->j;
+                                new_bw->is_horizontal = current_bw->is_horizontal;
+
+                                char *new_hand = strdup(current_hand);
+
+                                hand_remove_at(new_hand, delete_index);
+
+                                struct pair *new_p = create_pair(new_bw, new_hand);
+
+                                vector_push_back(stack, new_p);
+                            }
+
+                            bptn = bptn->next;
+                        }
+                    } else {
+                        for (int hand_index = 0; current_hand[hand_index] != '\0'; hand_index++) {
+                            char current_hand_char = current_hand[hand_index];
+
+                            if (current_hand_char == '*') {
+                                char *new_hand = strdup(current_hand);
+
+                                hand_remove_at(new_hand, hand_index);
+ 
+                                // copy the word over and add all characters from A to Z
+                                for (char wildcard_char = 'A'; wildcard_char <= 'Z'; wildcard_char++) {
+                                    struct board_word *new_bw = create_board_word();
+                                    
+                                    strncpy(new_bw->word, current_bw->word, current_bw->length);
+                                    new_bw->word[current_bw->length] = wildcard_char;
+                                    new_bw->word[current_bw->length + 1] = '\0';
+
+                                    new_bw->length = current_bw->length + 1;
+                                    new_bw->i = current_bw->i;
+                                    new_bw->j = current_bw->j;
+                                    new_bw->is_horizontal = current_bw->is_horizontal;
+
+                                    char *new_hand_copy = strdup(new_hand);
+
+                                    struct pair *new_p = create_pair(new_bw, new_hand_copy);
+
+                                    vector_push_back(stack, new_p);
+                                }
+
+                                free(new_hand);
+                            } else {
+                                struct board_word *new_bw = create_board_word();
+                                
+                                // copy the word over and add the new character
+                                strncpy(new_bw->word, current_bw->word, current_bw->length);
+                                new_bw->word[current_bw->length] = current_hand_char;
+                                new_bw->word[current_bw->length + 1] = '\0';
+
+                                new_bw->length = current_bw->length + 1;
+                                new_bw->i = current_bw->i;
+                                new_bw->j = current_bw->j;
+                                new_bw->is_horizontal = current_bw->is_horizontal;
+
+                                char *new_hand = strdup(current_hand);
+
+                                hand_remove_at(new_hand, hand_index);
+
+                                struct pair *new_p = create_pair(new_bw, new_hand);
+
+                                vector_push_back(stack, new_p);
+                            }
+                        }
+                    }
+                }
+
+                free_board_word(current_bw);
+                free(current_hand);
+                free(p);
+            }
+        }
+    }
+
+    return plays;
+}
+
+struct vector *find_all_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                              const char *wordlist,
+                              struct hashset *wordlist_set,
+                              const char hand[HAND_SIZE],
+                              struct vector *words) {
+    struct vector *plays = create_vector();
+    struct board_play_tiles *one_tile_plays = create_board_play_tiles();
+
+    for (size_t word_index = 0; word_index < vector_size(words); word_index++) {
+        struct board_word *bw = vector_at(words, word_index);
+        struct vector *extension_plays = find_all_extension_plays(board, wordlist, wordlist_set, hand, bw);
+
+        // add all word extension plays
+        for (size_t ext_index = 0; ext_index < vector_size(extension_plays); ext_index++) {
+            struct play *extension_play = vector_at(extension_plays, ext_index);
+
+            // add all hook plays
+            if (extension_play->size == 1) {
+                struct vector *hook_plays = find_all_hook_plays(board, wordlist, wordlist_set, hand, extension_play);
+
+                for (size_t hook_index = 0; hook_index < vector_size(hook_plays); hook_index++) {
+                    struct play *hook_play = vector_at(hook_plays, hook_index);
+
+                    vector_push_back(plays, hook_play);
+                }
+
+                free_vector(hook_plays);
+                board_play_tiles_insert(one_tile_plays, &extension_play->tiles[0]);
+            }
+
+            vector_push_back(plays, extension_play);
+        }
+
+        struct vector *perpendicular_plays = find_all_perpendicular_plays(board, wordlist, wordlist_set, hand, bw);
+
+        // add all perpendicular plays
+        for (size_t perp_index = 0; perp_index < vector_size(perpendicular_plays); perp_index++) {
+            struct play *perpendicular_play = vector_at(perpendicular_plays, perp_index);
+
+            if (perpendicular_play->size == 1) {
+                board_play_tiles_insert(one_tile_plays, &perpendicular_play->tiles[0]);
+            }
+
+            vector_push_back(plays, perpendicular_play);
+        }
+
+        free_vector(extension_plays);
+        free_vector(perpendicular_plays);
+    }
+
+    for (size_t word_index = 0; word_index < words->size; word_index++) {
+        struct board_word *bw = vector_at(words, word_index);
+
+        struct vector *parallel_plays = find_all_parallel_plays(board, wordlist_set,
+                                                                hand, bw, one_tile_plays);
+
+        // add all parallel plays
+        for (size_t parallel_index = 0; parallel_index < vector_size(parallel_plays); parallel_index++) {
+            struct play *parallel_play = vector_at(parallel_plays, parallel_index);
+
+            vector_push_back(plays, parallel_play);
+        }
+
+        free_vector(parallel_plays);
+    }
+    
+    free_board_play_tiles(one_tile_plays);
+
+    return plays;
 }
 
 int main(int argc, char **argv) {
@@ -1376,23 +1586,23 @@ int main(int argc, char **argv) {
     /* }; */
 
     // special hook
-    char board[15][15] = {
-        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0',  'Z', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0',  'E', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0',  'S',  'H', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        { 'T',  'I',  'T', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0',  'Y', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
-    };
+    /* char board[15][15] = { */
+    /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0',  'Z', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0',  'E', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0',  'S',  'H', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     { 'T',  'I',  'T', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0',  'Y', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
+    /* }; */
 
     // TEST REGEX FOR HOOK BEGIN
     /* char board[15][15] = { */
@@ -1432,6 +1642,25 @@ int main(int argc, char **argv) {
     /*     {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'}, */
     /* }; */
 
+    // parallel test
+    char board[15][15] = {
+        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0',  'A', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0',  'B', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0',  'A', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0',  'T', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0',  'E', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0',  'R', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0',  'S', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+        {'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0'},
+    };
+
     // DEBUG PRINT BOARD
     printf("   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4\n");
     for (size_t i = 0; i < BOARD_SIZE; i++) {
@@ -1445,65 +1674,16 @@ int main(int argc, char **argv) {
     // DEBUG PRINT BOARD END
     
     /* char hand[HAND_SIZE] = "ZYMU*GY"; */
-    char hand[HAND_SIZE] = "DAEB*GY";
+    /* char hand[HAND_SIZE] = "DAEB*GY"; */
+    char hand[HAND_SIZE] = "FRIGIDA";
 
-    struct vec *words = find_all_words(board);
+    struct vector *words = find_all_words(board);
 
-    struct vec *plays = vec_initialize();
-
-    for (size_t word_index = 0; word_index < words->size; word_index++) {
-        struct board_word *bw = vec_get(words, word_index);
-        struct vec *extension_plays = find_all_extensions(board, wordlist, wordlist_set, hand, bw);
-
-        // add all word extension plays
-        for (size_t ext_index = 0; ext_index < extension_plays->size; ext_index++) {
-            struct play *extension_play = vec_get(extension_plays, ext_index);
-
-            // add all hook plays
-            if (extension_play->size == 1) {
-                struct vec *hook_plays = find_all_hooks(board, wordlist, wordlist_set, hand, extension_play);
-
-                for (size_t hook_index = 0; hook_index < hook_plays->size; hook_index++) {
-                    struct play *hook_play = vec_get(hook_plays, hook_index);
-   
-                    vec_add(plays, hook_play);
-                }
-
-                vec_free(hook_plays);
-            }
-
-            vec_add(plays, extension_play);
-        }
-
-        struct vec *perpendicular_plays = find_all_perpendiculars(board, wordlist, wordlist_set, hand, bw);
-
-        for (size_t perp_index = 0; perp_index < perpendicular_plays->size; perp_index++) {
-            struct play *perpendicular_play = vec_get(perpendicular_plays, perp_index);
-
-            vec_add(plays, perpendicular_play);
-        }
-
-        // TODO get all parallel plays
-
-        vec_free(extension_plays);
-        vec_free(perpendicular_plays);
-    }
-
-    // DEBUG PRINT BOARD
-    printf("   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4\n");
-    for (size_t i = 0; i < BOARD_SIZE; i++) {
-        printf("%2ld ", i);
-        for (size_t j = 0; j < BOARD_SIZE; j++) {
-            printf("%c ", board[i][j] == '\0' ? '_' : board[i][j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-    // DEBUG PRINT BOARD END
+    struct vector *plays = find_all_plays(board, wordlist, wordlist_set, hand, words);
 
     printf("WORDS:\n"); // DEBUG
     for (size_t i = 0; i < words->size; i++) {
-        struct board_word *bw = vec_get(words, i);
+        struct board_word *bw = vector_at(words, i);
         
         printf("%d %d %c %s\n", bw->i, bw->j, bw->is_horizontal ? 'H' : 'V', bw->word);
     }
@@ -1511,7 +1691,7 @@ int main(int argc, char **argv) {
 
     printf("PLAYS:\n"); // DEBUG
     for (size_t i = 0; i < plays->size; i++) {
-        struct play *play = vec_get(plays, i);
+        struct play *play = vector_at(plays, i);
 
         printf(" %ld %s %c { ", play->size, play->word, play->is_horizontal ? 'H' : 'V');
 
@@ -1526,19 +1706,19 @@ int main(int argc, char **argv) {
     printf("\n"); // DEBUG
 
     for (size_t i = 0; i < plays->size; i++) {
-        struct play *play = vec_get(plays, i);
+        struct play *play = vector_at(plays, i);
 
         free_play(play);
     }
 
     for (size_t i = 0; i < words->size; i++) {
-        struct board_word *bw = vec_get(words, i);
+        struct board_word *bw = vector_at(words, i);
 
         free_board_word(bw);
     }
 
-    vec_free(plays);
-    vec_free(words);
+    free_vector(plays);
+    free_vector(words);
     free(wordlist);
     free_hashset(wordlist_set);
 

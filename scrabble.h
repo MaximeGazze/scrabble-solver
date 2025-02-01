@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "board-word.h"
+#include "board-play-tiles.h"
 #include "vector.h"
 #include "hashset.h"
 
@@ -21,12 +23,9 @@ enum board_tile {
     TripleWord,
 };
 
-struct board_word {
-    char *word;
-    int length;
-    int i;
-    int j;
-    bool is_horizontal;
+struct pair {
+    void *first;
+    void *second;
 };
 
 struct play {
@@ -43,23 +42,7 @@ struct play_tile {
     bool is_wildcard;
 };
 
-const enum board_tile bonus_board[BOARD_SIZE][BOARD_SIZE] = {
-    {TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, TripleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord},
-    {Empty, DoubleWord, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, DoubleWord, Empty},
-    {Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty},
-    {DoubleLetter, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, DoubleLetter},
-    {Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty},
-    {Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty},
-    {Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, Empty},
-    {TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord},
-    {Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, Empty},
-    {Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty},
-    {Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty},
-    {DoubleLetter, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, DoubleLetter},
-    {Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty},
-    {Empty, DoubleWord, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, DoubleWord, Empty},
-    {TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, TripleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord},
-};
+extern const enum board_tile bonus_board[BOARD_SIZE][BOARD_SIZE];
 
 /**
    This function takes a wordlist, in other terms, a string of words seperated
@@ -73,7 +56,7 @@ struct hashset *build_wordlist_set(const char *wordlist);
    validation with regards to the words found. If they are present on the
    board, they are assumed to be valid and will be collected.
  */
-struct vec *find_all_words(const char board[BOARD_SIZE][BOARD_SIZE]);
+struct vector *find_all_words(const char board[BOARD_SIZE][BOARD_SIZE]);
 
 /**
    This function takes a board_word bw and returns a regex string that can be
@@ -165,37 +148,49 @@ bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
 /**
    This function finds all extension plays on a board for the board_word bw. An
    extension play is a new word containing the word bw as a substring. The
-   extension can be a prefix, a suffix or both at the same time. A vec of plays
+   extension can be a prefix, a suffix or both at the same time. A vector of plays
    is returned containing all plays found.
 */
-struct vec *find_all_extensions(const char board[BOARD_SIZE][BOARD_SIZE],
-                                const char *wordlist,
-                                struct hashset *wordlist_set,
-                                const char hand[HAND_SIZE],
-                                struct board_word *bw);
+struct vector *find_all_extension_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                        const char *wordlist,
+                                        struct hashset *wordlist_set,
+                                        const char hand[HAND_SIZE],
+                                        struct board_word *bw);
 
 /**
    TODO
 */
-struct vec *find_all_hooks(const char board[BOARD_SIZE][BOARD_SIZE],
-                           const char *wordlist,
-                           struct hashset *wordlist_set,
-                           const char hand[HAND_SIZE],
-                           struct play *play);
+struct vector *find_all_hook_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                   const char *wordlist,
+                                   struct hashset *wordlist_set,
+                                   const char hand[HAND_SIZE],
+                                   struct play *play);
 
 /**
    TODO
 */
-struct vec *find_all_perpendiculars(const char board[BOARD_SIZE][BOARD_SIZE],
-                                    const char *wordlist,
-                                    struct hashset *wordlist_set,
-                                    const char hand[HAND_SIZE],
-                                    struct board_word *bw);
+struct vector *find_all_perpendicular_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                            const char *wordlist,
+                                            struct hashset *wordlist_set,
+                                            const char hand[HAND_SIZE],
+                                            struct board_word *bw);
 
 /**
    TODO
 */
-struct vec *find_all_parallels(const char board[BOARD_SIZE][BOARD_SIZE],
-                               const char *wordlist);
+struct vector *find_all_parallel_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                       struct hashset *wordlist_set,
+                                       const char hand[HAND_SIZE],
+                                       struct board_word *bw,
+                                       struct board_play_tiles *one_tile_plays);
+
+/**
+   TODO
+*/
+struct vector *find_all_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                              const char *wordlist,
+                              struct hashset *wordlist_set,
+                              const char hand[HAND_SIZE],
+                              struct vector *words);
 
 #endif

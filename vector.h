@@ -5,20 +5,24 @@
 
 #define VEC_INITIAL_SIZE 2
 
-struct vec {
+struct vector {
     void **array;
     size_t size;
     size_t mem_size;
 };
 
-struct vec *vec_initialize();
+struct vector *create_vector();
 
-void vec_free(struct vec *vector);
+void free_vector(struct vector *vector);
 
-void vec_add(struct vec *vector, void *address);
+void vector_push_back(struct vector *vector, void *address);
 
-void *vec_get(struct vec *vector, size_t index);
+void *vector_at(struct vector *vector, size_t index);
 
-size_t vec_size(struct vec *vector);
+void *vector_back(struct vector *vector);
+
+void vector_pop_back(struct vector *vector);
+
+size_t vector_size(struct vector *vector);
 
 #endif
