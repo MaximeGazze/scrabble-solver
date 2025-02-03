@@ -5,13 +5,13 @@
 #include <stdbool.h>
 
 #include "board-word.h"
+#include "play.h"
 #include "board-play-tiles.h"
 #include "vector.h"
 #include "hashset.h"
 
 #define BOARD_SIZE 15
 #define HAND_SIZE 7
-#define MAX_WORD_LENGTH 16
 #define SET_CAPACITY 256
 #define WORDLIST_PATH "./wordlist.txt"
 
@@ -28,60 +28,56 @@ struct pair {
     void *second;
 };
 
-struct play {
-    char *word;
-    struct play_tile *tiles;
-    size_t size;
-    bool is_horizontal;
-};
-
-struct play_tile {
-    char letter;
-    int i;
-    int j;
-    bool is_wildcard;
-};
-
 extern const enum board_tile bonus_board[BOARD_SIZE][BOARD_SIZE];
 
 /**
    This function takes a wordlist, in other terms, a string of words seperated
    by newline characters and creates a hashset containing all the words found.
- */
+*/
 struct hashset *build_wordlist_set(const char *wordlist);
+
+/**
+   This function creates a new `board_word` using the chars from the given board
+   starting at index [i,j] in the orientation is_horizontal. 
+*/
+struct board_word *create_board_word_from_index(const char board[BOARD_SIZE][BOARD_SIZE],
+                                                int i,
+                                                int j,
+                                                bool is_horizontal);
 
 /**
    This function finds all words in the given board. Words are sequences of 2 or
    more contiguous characters horizontally or vertically. This function makes no
    validation with regards to the words found. If they are present on the
-   board, they are assumed to be valid and will be collected.
- */
-struct vector *find_all_words(const char board[BOARD_SIZE][BOARD_SIZE]);
+   board, they are assumed to be valid and will be collected. The result is a
+   vector of `board_word` structs.
+*/
+struct vector *find_board_words(const char board[BOARD_SIZE][BOARD_SIZE]);
 
 /**
-   This function takes a board_word bw and returns a regex string that can be
+   This function takes a `board_word` bw and returns a regex string that can be
    used against a wordlist to find a word extension. Word extensions are new
    valid words built by adding characters to the begining, end or both ends of
    a word. The extensions built from the returned regex string are not
    necessarily valid and need to be validated to make sure they do not create
    new invalid words perpendicular to the newly added characters.
- */
+*/
 char *build_extension_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
-                                   const char hand[HAND_SIZE],
+                                   const char *hand,
                                    struct board_word *bw);
 
 /**
    TODO
- */
+*/
 char *build_hook_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
-                              const char hand[HAND_SIZE],
+                              const char *hand,
                               struct play *play);
 
 /**
    TODO
 */
 char *build_perpendicular_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
-                                       const char hand[HAND_SIZE],
+                                       const char *hand,
                                        struct board_word *bw,
                                        int index);
 
@@ -94,7 +90,7 @@ char *build_perpendicular_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
 */
 struct play *build_play(const char board[BOARD_SIZE][BOARD_SIZE],
                         struct hashset *wordlist_set,
-                        const char hand[HAND_SIZE],
+                        const char *hand,
                         struct board_word *bw);
 
 /**
@@ -142,7 +138,7 @@ bool validate_play_vertically(const char board[BOARD_SIZE][BOARD_SIZE],
 */
 bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
                    struct hashset *wordlist_set,
-                   const char hand[HAND_SIZE],
+                   const char *hand,
                    struct play *play);
 
 /**
@@ -151,46 +147,61 @@ bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
    extension can be a prefix, a suffix or both at the same time. A vector of plays
    is returned containing all plays found.
 */
-struct vector *find_all_extension_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+struct vector *find_extension_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                    const char *wordlist,
+                                    struct hashset *wordlist_set,
+                                    const char *hand,
+                                    struct board_word *bw);
+
+/**
+   TODO
+*/
+struct vector *find_hook_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                               const char *wordlist,
+                               struct hashset *wordlist_set,
+                               const char *hand,
+                               struct play *play);
+
+/**
+   TODO
+*/
+struct vector *find_perpendicular_plays(const char board[BOARD_SIZE][BOARD_SIZE],
                                         const char *wordlist,
                                         struct hashset *wordlist_set,
-                                        const char hand[HAND_SIZE],
+                                        const char *hand,
                                         struct board_word *bw);
 
 /**
    TODO
 */
-struct vector *find_all_hook_plays(const char board[BOARD_SIZE][BOARD_SIZE],
-                                   const char *wordlist,
+struct vector *find_parallel_plays(const char board[BOARD_SIZE][BOARD_SIZE],
                                    struct hashset *wordlist_set,
-                                   const char hand[HAND_SIZE],
-                                   struct play *play);
+                                   const char *hand,
+                                   struct board_word *bw,
+                                   struct board_play_tiles *one_tile_plays);
 
 /**
    TODO
 */
-struct vector *find_all_perpendicular_plays(const char board[BOARD_SIZE][BOARD_SIZE],
-                                            const char *wordlist,
-                                            struct hashset *wordlist_set,
-                                            const char hand[HAND_SIZE],
-                                            struct board_word *bw);
+struct pair *create_pair(void *first, void *second);
 
 /**
    TODO
 */
-struct vector *find_all_parallel_plays(const char board[BOARD_SIZE][BOARD_SIZE],
-                                       struct hashset *wordlist_set,
-                                       const char hand[HAND_SIZE],
-                                       struct board_word *bw,
-                                       struct board_play_tiles *one_tile_plays);
+int hand_index_of(const char *hand, char letter);
 
 /**
    TODO
 */
-struct vector *find_all_plays(const char board[BOARD_SIZE][BOARD_SIZE],
-                              const char *wordlist,
-                              struct hashset *wordlist_set,
-                              const char hand[HAND_SIZE],
-                              struct vector *words);
+void hand_remove_at(char *hand, int index);
+
+/**
+   TODO
+*/
+struct vector *find_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                          const char *wordlist,
+                          struct hashset *wordlist_set,
+                          const char *hand,
+                          struct vector *words);
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef BOARD_PLAYS_H
 #define BOARD_PLAYS_H
 
+struct board_play_tiles;
+
 #include "scrabble.h"
 
 struct board_play_tiles {

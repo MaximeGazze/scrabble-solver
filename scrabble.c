@@ -48,80 +48,54 @@ struct hashset *build_wordlist_set(const char *wordlist) {
     return set;
 }
 
-struct vector *find_all_words(const char board[BOARD_SIZE][BOARD_SIZE]) {
+struct board_word *create_board_word_from_index(const char board[BOARD_SIZE][BOARD_SIZE],
+                                                int i,
+                                                int j,
+                                                bool is_horizontal) {
+    struct board_word *bw = create_board_word();
+
+    bw->length = 0;
+    bw->i = i;
+    bw->j = j;
+    bw->is_horizontal = false;
+
+    if (is_horizontal) {
+        int temp_j = j;
+        while (temp_j < BOARD_SIZE && board[i][temp_j] != '\0') {
+            bw->word[temp_j - j] = board[i][temp_j];
+            bw->length++;
+            temp_j++;
+        }
+    } else {
+        int temp_i = i;
+        while (temp_i < BOARD_SIZE && board[temp_i][j] != '\0') {
+            bw->word[temp_i - i] = board[temp_i][j];
+            bw->length++;
+            temp_i++;
+        }
+    }
+
+    bw->word[bw->length] = '\0';
+
+    return bw;
+}
+
+struct vector *find_board_words(const char board[BOARD_SIZE][BOARD_SIZE]) {
     struct vector *words = create_vector();
 
-    for (size_t i = 0; i < BOARD_SIZE; i++) {
-        for (size_t j = 0; j < BOARD_SIZE; j++) {
+    for (int i = 0; i < BOARD_SIZE; i++) {
+        for (int j = 0; j < BOARD_SIZE; j++) {
             if (board[i][j] != '\0') {
                 // check for new vertical word
                 if ((i == 0 && board[i + 1][j] != '\0') ||
                     (i != 0 && i < BOARD_SIZE - 1 && board[i - 1][j] == '\0' && board[i + 1][j] != '\0')) {
-                    struct board_word *bw = malloc(sizeof(struct board_word));
-                    if (bw == NULL) {
-                        perror("malloc");
-                        exit(EXIT_FAILURE);
-                    }
-
-                    bw->word = malloc(MAX_WORD_LENGTH + 1);
-                    if (bw->word == NULL) {
-                        perror("malloc");
-                        exit(EXIT_FAILURE);
-                    }
-
-                    bw->length = 0;
-                    bw->i = i;
-                    bw->j = j;
-                    bw->is_horizontal = false;
-
-                    size_t temp_i = i;
-                    while (temp_i < BOARD_SIZE) {
-                        if (board[temp_i][j] == '\0') {
-                            bw->word[bw->length] = '\0';
-                            break;
-                        }
-
-                        bw->word[temp_i - i] = board[temp_i][j];
-                        temp_i++;
-                        bw->length++;
-                    }
-
-                    vector_push_back(words, bw);
+                    vector_push_back(words, create_board_word_from_index(board, i, j, false));
                 }
 
                 // check for new horizontal word
                 if ((j == 0 && board[i][j + 1] != '\0') ||
                     (j != 0 && j < BOARD_SIZE - 1 && board[i][j - 1] == '\0' && board[i][j + 1] != '\0')) {
-                    struct board_word *bw = malloc(sizeof(struct board_word));
-                    if (bw == NULL) {
-                        perror("malloc");
-                        exit(EXIT_FAILURE);
-                    }
-
-                    bw->word = malloc(MAX_WORD_LENGTH + 1);
-                    if (bw->word == NULL) {
-                        perror("malloc");
-                        exit(EXIT_FAILURE);
-                    }
-
-                    bw->length = 0;
-                    bw->i = i;
-                    bw->j = j;
-                    bw->is_horizontal = true;
-
-                    size_t temp_j = j;
-                    while (temp_j < BOARD_SIZE) {
-                        if (board[i][temp_j] == '\0') {
-                            bw->word[bw->length] = '\0';
-                            break;
-                        }
-
-                        bw->word[temp_j - j] = board[i][temp_j];
-                        temp_j++;
-                        bw->length++;
-                    }
-
-                    vector_push_back(words, bw);
+                    vector_push_back(words, create_board_word_from_index(board, i, j, true));
                 }
             }
         }
@@ -131,7 +105,7 @@ struct vector *find_all_words(const char board[BOARD_SIZE][BOARD_SIZE]) {
 }
 
 char *build_extension_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
-                                   const char hand[HAND_SIZE],
+                                   const char *hand,
                                    struct board_word *bw) {
     char buffer[512];
     size_t buffer_index = 0;
@@ -288,7 +262,7 @@ char *build_extension_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
 }
 
 char *build_hook_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
-                              const char hand[HAND_SIZE],
+                              const char *hand,
                               struct play *play) {
     char buffer[512];
     size_t buffer_index = 0;
@@ -398,7 +372,7 @@ char *build_hook_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
 }
 
 char *build_perpendicular_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
-                                       const char hand[HAND_SIZE],
+                                       const char *hand,
                                        struct board_word *bw,
                                        int index) {
     char buffer[512];
@@ -560,21 +534,11 @@ char *build_perpendicular_regex_string(const char board[BOARD_SIZE][BOARD_SIZE],
 
 struct play *build_play(const char board[BOARD_SIZE][BOARD_SIZE],
                         struct hashset *wordlist_set,
-                        const char hand[HAND_SIZE],
+                        const char *hand,
                         struct board_word *bw) {
-    struct play *play = malloc(sizeof(struct play));
-    if (play == NULL) {
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
+    struct play *play = create_play();
 
-    play->word = strdup(bw->word);
-
-    play->tiles = malloc(sizeof(struct play_tile) * HAND_SIZE);
-    if (play->tiles == NULL) {
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
+    strcpy(play->word, bw->word);
 
     play->is_horizontal = bw->is_horizontal;
 
@@ -612,12 +576,6 @@ struct play *build_play(const char board[BOARD_SIZE][BOARD_SIZE],
     }
 
     return play;
-}
-
-void free_play(struct play *p) {
-    free(p->word);
-    free(p->tiles);
-    free(p);
 }
 
 bool validate_play_tile_horizontally(const char board[BOARD_SIZE][BOARD_SIZE],
@@ -822,7 +780,7 @@ bool validate_play_vertically(const char board[BOARD_SIZE][BOARD_SIZE],
 
 bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
                    struct hashset *wordlist_set,
-                   const char hand[HAND_SIZE],
+                   const char *hand,
                    struct play *play) {
     if (play->size == 0) {
         return false;
@@ -855,44 +813,20 @@ bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
         return false;
     }
 
-    char hand_copy[HAND_SIZE];
-
+    char hand_copy[HAND_SIZE + 1];
     strcpy(hand_copy, hand);
 
-    // validate that hand contains all tiles necessary for the play
-    for (size_t i = 0; i < play->size; i++) {
-        struct play_tile *pt = &play->tiles[i];
-        bool pt_removed = false;
-        bool has_wildcard = false;
+    for (size_t index = 0; index < play->size; index++) {
+        struct play_tile *pt = &play->tiles[index];
 
-        // remove play tile from hand to validate 
-        for (size_t index = 0; index < HAND_SIZE; index++) {
-            if (hand_copy[index] == '*') {
-                has_wildcard = true;
-            }
+        // validate that all tiles needed for the play are present in the hand
+        int pt_char_index = hand_index_of(hand_copy, pt->is_wildcard ? '*' : pt->letter);
 
-            if (hand_copy[index] == pt->letter) {
-                hand_copy[index] = '_';
-                pt_removed = true;
-                break;
-            }
-        }
-
-        // if no tile was found and a wildcard tile is present, it is used for the play
-        if (has_wildcard) {
-            for (size_t index = 0; index < HAND_SIZE; index++) {
-                if (hand_copy[index] == '*') {
-                    hand_copy[index] = '_';
-                    pt->is_wildcard = true;
-                    pt_removed = true;
-                    break;
-                }
-            }
-        }
-
-        if (!pt_removed) {
+        if (pt_char_index == -1) {
             return false;
         }
+
+        hand_remove_at(hand_copy, pt_char_index);
 
         // check that all tiles are placed on unplayed board tiles
         if (board[pt->i][pt->j] != '\0') {
@@ -925,11 +859,11 @@ bool validate_play(const char board[BOARD_SIZE][BOARD_SIZE],
     return true;
 }
 
-struct vector *find_all_extension_plays(const char board[BOARD_SIZE][BOARD_SIZE],
-                                        const char *wordlist,
-                                        struct hashset *wordlist_set,
-                                        const char hand[HAND_SIZE],
-                                        struct board_word *bw) {
+struct vector *find_extension_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                    const char *wordlist,
+                                    struct hashset *wordlist_set,
+                                    const char *hand,
+                                    struct board_word *bw) {
     struct vector *plays = create_vector();
 
     char *regex_string = build_extension_regex_string(board, hand, bw);
@@ -989,11 +923,11 @@ struct vector *find_all_extension_plays(const char board[BOARD_SIZE][BOARD_SIZE]
     return plays;
 }
 
-struct vector *find_all_hook_plays(const char board[BOARD_SIZE][BOARD_SIZE],
-                                   const char *wordlist,
-                                   struct hashset *wordlist_set,
-                                   const char hand[HAND_SIZE],
-                                   struct play *play) {
+struct vector *find_hook_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                               const char *wordlist,
+                               struct hashset *wordlist_set,
+                               const char *hand,
+                               struct play *play) {
     assert(play->size == 1);
 
     struct play_tile pt = play->tiles[0];
@@ -1072,11 +1006,11 @@ struct vector *find_all_hook_plays(const char board[BOARD_SIZE][BOARD_SIZE],
     return plays;
 }
 
-struct vector *find_all_perpendicular_plays(const char board[BOARD_SIZE][BOARD_SIZE],
-                                            const char *wordlist,
-                                            struct hashset *wordlist_set,
-                                            const char hand[HAND_SIZE],
-                                            struct board_word *bw) {
+struct vector *find_perpendicular_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                        const char *wordlist,
+                                        struct hashset *wordlist_set,
+                                        const char *hand,
+                                        struct board_word *bw) {
     struct vector *plays = create_vector();
 
     bool is_horizontal = !bw->is_horizontal;
@@ -1088,12 +1022,12 @@ struct vector *find_all_perpendicular_plays(const char board[BOARD_SIZE][BOARD_S
         char play_char = bw->word[char_index];
 
         bool has_char_above = i != 0 && board[i - 1][j] != '\0';
-        bool has_char_below = i != BOARD_SIZE - 1 && board[i + 1][j] != '\0';
+        bool has_char_bellow = i != BOARD_SIZE - 1 && board[i + 1][j] != '\0';
         bool has_char_left = j != 0 && board[i][j - 1] != '\0';
         bool has_char_right = j != BOARD_SIZE - 1 && board[i][j + 1] != '\0';
 
         // FIXME refactor this shit
-        if ((!is_horizontal && (has_char_above || has_char_below))
+        if ((!is_horizontal && (has_char_above || has_char_bellow))
             || (is_horizontal && (has_char_left || has_char_right))) {
             if (bw->is_horizontal) {
                 j++;
@@ -1202,11 +1136,11 @@ void hand_remove_at(char *hand, int index) {
     }
 }
 
-struct vector *find_all_parallel_plays(const char board[BOARD_SIZE][BOARD_SIZE],
-                                       struct hashset *wordlist_set,
-                                       const char hand[HAND_SIZE],
-                                       struct board_word *bw,
-                                       struct board_play_tiles *one_tile_plays) {
+struct vector *find_parallel_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                                   struct hashset *wordlist_set,
+                                   const char *hand,
+                                   struct board_word *bw,
+                                   struct board_play_tiles *one_tile_plays) {
     struct vector *plays = create_vector();
 
     for (int offset = -1; offset < 2; offset += 2) {
@@ -1382,17 +1316,17 @@ struct vector *find_all_parallel_plays(const char board[BOARD_SIZE][BOARD_SIZE],
     return plays;
 }
 
-struct vector *find_all_plays(const char board[BOARD_SIZE][BOARD_SIZE],
-                              const char *wordlist,
-                              struct hashset *wordlist_set,
-                              const char hand[HAND_SIZE],
-                              struct vector *words) {
+struct vector *find_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                          const char *wordlist,
+                          struct hashset *wordlist_set,
+                          const char *hand,
+                          struct vector *words) {
     struct vector *plays = create_vector();
     struct board_play_tiles *one_tile_plays = create_board_play_tiles();
 
     for (size_t word_index = 0; word_index < vector_size(words); word_index++) {
         struct board_word *bw = vector_at(words, word_index);
-        struct vector *extension_plays = find_all_extension_plays(board, wordlist, wordlist_set, hand, bw);
+        struct vector *extension_plays = find_extension_plays(board, wordlist, wordlist_set, hand, bw);
 
         // add all word extension plays
         for (size_t ext_index = 0; ext_index < vector_size(extension_plays); ext_index++) {
@@ -1400,7 +1334,7 @@ struct vector *find_all_plays(const char board[BOARD_SIZE][BOARD_SIZE],
 
             // add all hook plays
             if (extension_play->size == 1) {
-                struct vector *hook_plays = find_all_hook_plays(board, wordlist, wordlist_set, hand, extension_play);
+                struct vector *hook_plays = find_hook_plays(board, wordlist, wordlist_set, hand, extension_play);
 
                 for (size_t hook_index = 0; hook_index < vector_size(hook_plays); hook_index++) {
                     struct play *hook_play = vector_at(hook_plays, hook_index);
@@ -1415,7 +1349,7 @@ struct vector *find_all_plays(const char board[BOARD_SIZE][BOARD_SIZE],
             vector_push_back(plays, extension_play);
         }
 
-        struct vector *perpendicular_plays = find_all_perpendicular_plays(board, wordlist, wordlist_set, hand, bw);
+        struct vector *perpendicular_plays = find_perpendicular_plays(board, wordlist, wordlist_set, hand, bw);
 
         // add all perpendicular plays
         for (size_t perp_index = 0; perp_index < vector_size(perpendicular_plays); perp_index++) {
@@ -1435,8 +1369,8 @@ struct vector *find_all_plays(const char board[BOARD_SIZE][BOARD_SIZE],
     for (size_t word_index = 0; word_index < words->size; word_index++) {
         struct board_word *bw = vector_at(words, word_index);
 
-        struct vector *parallel_plays = find_all_parallel_plays(board, wordlist_set,
-                                                                hand, bw, one_tile_plays);
+        struct vector *parallel_plays = find_parallel_plays(board, wordlist_set,
+                                                            hand, bw, one_tile_plays);
 
         // add all parallel plays
         for (size_t parallel_index = 0; parallel_index < vector_size(parallel_plays); parallel_index++) {
@@ -1677,9 +1611,9 @@ int main(int argc, char **argv) {
     /* char hand[HAND_SIZE] = "DAEB*GY"; */
     char hand[HAND_SIZE] = "FRIGIDA";
 
-    struct vector *words = find_all_words(board);
+    struct vector *words = find_board_words(board);
 
-    struct vector *plays = find_all_plays(board, wordlist, wordlist_set, hand, words);
+    struct vector *plays = find_plays(board, wordlist, wordlist_set, hand, words);
 
     printf("WORDS:\n"); // DEBUG
     for (size_t i = 0; i < words->size; i++) {
