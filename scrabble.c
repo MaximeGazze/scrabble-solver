@@ -724,6 +724,7 @@ bool validate_play_vertically(const char board[BOARD_SIZE][BOARD_SIZE],
     int i = play->tiles[0].i;
     int j = play->tiles[0].j;
 
+    // FIXME refactor this with play_has_tile_at function and do the same for horizontal
     // rewind to the start of the word on the board
     while (i != 0) {
         if (board[i - 1][j] == '\0') {
@@ -1102,19 +1103,6 @@ struct vector *find_perpendicular_plays(const char board[BOARD_SIZE][BOARD_SIZE]
     return plays;
 }
 
-struct pair *create_pair(void *first, void *second) {
-    struct pair *p = malloc(sizeof(struct pair));
-    if (p == NULL) {
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
-
-    p->first = first;
-    p->second = second;
-
-    return p;
-}
-
 int hand_index_of(const char *hand, char letter) {
     for (int index = 0; hand[index] != '\0'; index++) {
         if (hand[index] == letter) {
@@ -1387,6 +1375,259 @@ struct vector *find_plays(const char board[BOARD_SIZE][BOARD_SIZE],
     return plays;
 }
 
+struct play_tile *play_tile_at(const struct play *play, int i, int j) {
+    for (size_t tile_index = 0; tile_index < play->size; tile_index++) {
+        struct play_tile *pt = &play->tiles[tile_index];
+
+        if (pt->i == i && pt->j == j) {
+            return pt;
+        }
+    }
+
+    return NULL;
+}
+
+int score_char(char c) {
+    switch (c) {
+        case 'A': return 1;
+        case 'B': return 3;
+        case 'C': return 3;
+        case 'D': return 2;
+        case 'E': return 1;
+        case 'F': return 4;
+        case 'G': return 2;
+        case 'H': return 4;
+        case 'I': return 1;
+        case 'J': return 8;
+        case 'K': return 5;
+        case 'L': return 1;
+        case 'M': return 3;
+        case 'N': return 1;
+        case 'O': return 1;
+        case 'P': return 3;
+        case 'Q': return 10;
+        case 'R': return 1;
+        case 'S': return 1;
+        case 'T': return 1;
+        case 'U': return 1;
+        case 'V': return 4;
+        case 'W': return 4;
+        case 'X': return 8;
+        case 'Y': return 4;
+        case 'Z': return 10;
+        case '*': return 0;
+        default: assert(false); // DEBUG
+    }
+}
+
+void score_apply_bonus(int *tile_multiplier, int *word_multiplier, int i, int j) {
+    switch (bonus_board[i][j]) {
+        case Empty:
+            break;
+        case DoubleLetter:
+            *tile_multiplier *= 2;
+            break;
+        case TripleLetter:
+            *tile_multiplier *= 3;
+            break;
+        case DoubleWord:
+            *word_multiplier *= 2;
+            break;
+        case TripleWord:
+            *word_multiplier *= 3;
+            break;
+        default: assert(false); // DEBUG
+    }
+}
+
+int score_play_horizontally(const char board[BOARD_SIZE][BOARD_SIZE],
+                            const struct play *play) {
+    int score = 0;
+    int multiplier = 1;
+    int i = play->tiles[0].i;
+    int j = play->tiles[0].j;
+    
+    // rewind to the start of the play horizontally
+    while (j != 0 && (board[i][j - 1] != '\0' || play_tile_at(play, i, j - 1) != NULL)) {
+        j--;
+    }
+
+    // count the score of the new word
+    while (j < BOARD_SIZE) {
+        if (board[i][j] != '\0') {
+            score += score_char(board[i][j]);
+        } else {
+            struct play_tile *pt = play_tile_at(play, i, j);
+
+            if (pt == NULL) {
+                break;
+            }
+
+            int new_tile_score = score_char(pt->is_wildcard ? '*' : pt->letter);
+            int tile_multiplier = 1;
+
+            score_apply_bonus(&tile_multiplier, &multiplier, i, j);
+
+            score += new_tile_score * tile_multiplier;
+        }
+        
+        j++;
+    }
+
+    return score * multiplier;
+}
+
+int score_play_vertically(const char board[BOARD_SIZE][BOARD_SIZE],
+                          const struct play *play) {
+    int score = 0;
+    int multiplier = 1;
+    int i = play->tiles[0].i;
+    int j = play->tiles[0].j;
+
+    // rewind to the start of the play vertically
+    while (i != 0 && (board[i - 1][j] != '\0' || play_tile_at(play, i - 1, j) != NULL)) {
+        i--;
+    }
+
+    // count the score of the new word
+    while (i < BOARD_SIZE) {
+        if (board[i][j] != '\0') {
+            score += score_char(board[i][j]);
+        } else {
+            struct play_tile *pt = play_tile_at(play, i, j);
+
+            if (pt == NULL) {
+                break;
+            }
+
+            int new_tile_score = score_char(pt->is_wildcard ? '*' : pt->letter);
+            int tile_multiplier = 1;
+
+            score_apply_bonus(&tile_multiplier, &multiplier, i, j);
+
+            score += new_tile_score * tile_multiplier;
+        }
+        
+        i++;
+    }
+
+    return score * multiplier;
+}
+
+int score_tile_horizontally(const char board[BOARD_SIZE][BOARD_SIZE],
+                            const struct play_tile *tile) {
+    int score = 0;
+    int multiplier = 1;
+    int i = tile->i;
+    int j = tile->j;
+        
+    // rewind to the start of the new word
+    while (j != 0 && board[i][j - 1] != '\0') {
+        j--;
+    }
+
+    // check if there is a new word created
+    if (j == BOARD_SIZE - 1 || (board[i][j + 1] == '\0' && j + 1 != tile->j)) {
+        return score;
+    }
+
+    // count the score of the new word
+    while (j < BOARD_SIZE && (board[i][j] != '\0' || tile->j == j)) {
+        if (tile->j == j) {
+            int new_tile_score = score_char(tile->is_wildcard ? '*' : tile->letter);
+            int tile_multiplier = 1;
+
+            score_apply_bonus(&tile_multiplier, &multiplier, i, j);
+
+            score += new_tile_score * tile_multiplier;
+        } else {
+            score += score_char(board[i][j]);
+        }
+        
+        j++;
+    }
+
+    return score * multiplier;
+}
+
+int score_tile_vertically(const char board[BOARD_SIZE][BOARD_SIZE],
+                          const struct play_tile *tile) {
+    int score = 0;
+    int multiplier = 1;
+    int i = tile->i;
+    int j = tile->j;
+        
+    // rewind to the start of the new word
+    while (i != 0 && board[i - 1][j] != '\0') {
+        i--;
+    }
+
+    // check if there is a new word created
+    if (i == BOARD_SIZE - 1 || (board[i + 1][j] == '\0' && i + 1 != tile->i)) {
+        return score;
+    }
+
+    // count the score of the new word
+    while (i < BOARD_SIZE && (board[i][j] != '\0' || tile->i == i)) {
+        if (tile->i == i) {
+            int new_tile_score = score_char(tile->is_wildcard ? '*' : tile->letter);
+            int tile_multiplier = 1;
+
+            score_apply_bonus(&tile_multiplier, &multiplier, i, j);
+
+            score += new_tile_score * tile_multiplier;
+        } else {
+            score += score_char(board[i][j]);
+        }
+        
+        i++;
+    }
+
+    return score * multiplier;
+}
+
+int score_play(const char board[BOARD_SIZE][BOARD_SIZE],
+               const struct play *play) {
+    int score = 0;
+
+    if (play->size == 0) {
+        return score;
+    }
+
+    if (play->is_horizontal) {
+        score += score_play_horizontally(board, play);
+
+        for (size_t tile_index = 0; tile_index < play->size; tile_index++) {
+            struct play_tile *pt = &play->tiles[tile_index];
+
+            score += score_tile_vertically(board, pt);
+        }
+    } else {
+        score += score_play_vertically(board, play);
+
+        for (size_t tile_index = 0; tile_index < play->size; tile_index++) {
+            struct play_tile *pt = &play->tiles[tile_index];
+
+            score += score_tile_horizontally(board, pt);
+        }
+    }
+
+    if (play->size == HAND_SIZE) {
+        score += 50;
+    }
+
+    return score;
+}
+
+void score_plays(const char board[BOARD_SIZE][BOARD_SIZE],
+                struct vector *plays) {
+    for (size_t index = 0; index < vector_size(plays); index++) {
+        struct play *play = vector_at(plays, index);
+        int score = score_play(board, play);
+        printf("%d %s\n", score, play->word); // DEBUG
+    }
+}
+
 int main(int argc, char **argv) {
     /* char board[BOARD_SIZE][BOARD_SIZE]; */
 
@@ -1623,11 +1864,21 @@ int main(int argc, char **argv) {
     }
     printf("\n"); // DEBUG
 
+    int max_score = 0;
+    struct play *max_play = NULL;
+
     printf("PLAYS:\n"); // DEBUG
     for (size_t i = 0; i < plays->size; i++) {
         struct play *play = vector_at(plays, i);
 
-        printf(" %ld %s %c { ", play->size, play->word, play->is_horizontal ? 'H' : 'V');
+        int score = score_play(board, play);
+        
+        if (score > max_score) {
+            max_score = score;
+            max_play = play;
+        }
+
+        printf(" %d %s %ld %c { ", score, play->word, play->size, play->is_horizontal ? 'H' : 'V');
 
         for (size_t j = 0; j < play->size; j++) {
             struct play_tile pt = play->tiles[j];
@@ -1639,6 +1890,32 @@ int main(int argc, char **argv) {
     }
     printf("\n"); // DEBUG
 
+    printf("MAX PLAY:"); // DEBUG
+    printf(" %d %s %ld %c { ", max_score, max_play->word, max_play->size, max_play->is_horizontal ? 'H' : 'V');
+
+    for (size_t j = 0; j < max_play->size; j++) {
+        struct play_tile pt = max_play->tiles[j];
+
+        printf("%c %d %d, ", pt.is_wildcard ? '*' : pt.letter, pt.i, pt.j);
+    }
+
+    printf("}\n"); // DEBUG
+
+    // TODO
+    /* score_plays(board, plays); */
+
+    // DEBUG PRINT BOARD
+    printf("   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4\n");
+    for (size_t i = 0; i < BOARD_SIZE; i++) {
+        printf("%2ld ", i);
+        for (size_t j = 0; j < BOARD_SIZE; j++) {
+            printf("%c ", board[i][j] == '\0' ? '_' : board[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+    // DEBUG PRINT BOARD END
+    
     for (size_t i = 0; i < plays->size; i++) {
         struct play *play = vector_at(plays, i);
 

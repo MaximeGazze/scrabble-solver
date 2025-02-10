@@ -7,6 +7,7 @@
 #include "board-word.h"
 #include "play.h"
 #include "board-play-tiles.h"
+#include "pair.h"
 #include "vector.h"
 #include "hashset.h"
 
@@ -21,11 +22,6 @@ enum board_tile {
     TripleLetter,
     DoubleWord,
     TripleWord,
-};
-
-struct pair {
-    void *first;
-    void *second;
 };
 
 extern const enum board_tile bonus_board[BOARD_SIZE][BOARD_SIZE];
@@ -183,11 +179,6 @@ struct vector *find_parallel_plays(const char board[BOARD_SIZE][BOARD_SIZE],
 /**
    TODO
 */
-struct pair *create_pair(void *first, void *second);
-
-/**
-   TODO
-*/
 int hand_index_of(const char *hand, char letter);
 
 /**
@@ -198,10 +189,21 @@ void hand_remove_at(char *hand, int index);
 /**
    TODO
 */
+struct play_tile *play_tile_at(const struct play *play, int i, int j);
+
+/**
+   TODO
+*/
 struct vector *find_plays(const char board[BOARD_SIZE][BOARD_SIZE],
                           const char *wordlist,
                           struct hashset *wordlist_set,
                           const char *hand,
                           struct vector *words);
+
+/**
+   TODO
+*/
+int score_play(const char board[BOARD_SIZE][BOARD_SIZE],
+               const struct play *play);
 
 #endif
