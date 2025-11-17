@@ -78,14 +78,14 @@ fn main() {
 
     let extension_plays = board.find_extension_plays(play, &wordlist, &hand);
 
-    // extension_plays
-    //     .iter()
-    //     .for_each(|it| println!("{}", it.word));
+    extension_plays
+        .iter()
+        .for_each(|it| println!("{}", it.word));
     // extension_plays.iter().for_each(|it| println!("{:?}\n", it));
 
-    let hook_plays = board.find_hook_plays(play, &wordlist, &hand);
+    // let hook_plays = board.find_hook_plays(play, &wordlist, &hand);
 
-    hook_plays.iter().for_each(|it| println!("{}", it.word));
+    // hook_plays.iter().for_each(|it| println!("{}", it.word));
     // hook_plays.iter().for_each(|it| println!("{:?}\n", it));
 
     println!("{}", board);

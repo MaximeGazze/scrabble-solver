@@ -1,6 +1,5 @@
 use std::{
     collections::HashSet,
-    fmt::{Display, Formatter},
     hash::{Hash, Hasher},
     ops::Not,
 };
@@ -293,20 +292,58 @@ impl Board {
         0
     }
 
+    fn validate_tile(
+        &self,
+        tile: &Tile,
+        orientation: Orientation,
+        wordlist: &HashSet<String>,
+    ) -> bool {
+        let word_before = self
+            .tile_before(&tile.coordinates, orientation)
+            .and_then(|tile_before| self.play_at(tile_before.coordinates, orientation))
+            .map(|play| play.word);
+
+        let word_after = self
+            .tile_after(&tile.coordinates, orientation)
+            .and_then(|tile_after| self.play_at(tile_after.coordinates, orientation))
+            .map(|play| play.word);
+
+        println!("{:?} : {:?}", word_before, word_after);
+
+        let mut new_word = String::new();
+
+        if let Some(ref word) = word_before {
+            new_word += &word;
+        }
+
+        new_word.push(tile.letter);
+
+        if let Some(ref word) = word_after {
+            new_word += &word;
+        }
+
+        (word_before.is_none() && word_after.is_none()) || wordlist.contains(&new_word)
+    }
+
     fn build_possible_plays(
         &self,
         play: &Play,
         wordlist: &HashSet<String>,
         hand: &Vec<char>,
         allow_skewer: bool,
+        include_init_tiles: bool,
     ) -> Vec<Play> {
         let mut plays = HashSet::new();
         let mut play_stack: Vec<(Play, Vec<(char, bool)>, Coordinates, Coordinates)> = Vec::new();
 
-        let init_play = Play {
-            word: play.word.clone(),
-            tiles: Vec::new(),
-            orientation: play.orientation,
+        let init_play = if include_init_tiles {
+            play.clone()
+        } else {
+            Play {
+                word: play.word.clone(),
+                tiles: Vec::new(),
+                orientation: play.orientation,
+            }
         };
 
         let init_hand: Vec<(char, bool)> = hand
@@ -335,9 +372,9 @@ impl Board {
             last_tile_coordinates,
         ));
 
-        while !play_stack.is_empty() {
+        while let Some(play_context) = play_stack.pop() {
             let (current_play, current_hand, first_tile_coordinates, last_tile_coordinates) =
-                play_stack.pop().expect("stack should not be empty");
+                play_context;
 
             let prepend_out_of_bounds = first_tile_coordinates.sub(1, play.orientation).is_none();
             let append_out_of_bounds = last_tile_coordinates.add(1, play.orientation).is_none();
@@ -373,21 +410,25 @@ impl Board {
                             wildcard: *wildcard,
                         };
 
-                        new_play.word.insert(0, *letter);
-                        new_play.tiles.insert(0, new_tile);
+                        if self.validate_tile(&new_tile, !play.orientation, wordlist) {
+                            new_play.word.insert(0, *letter);
+                            new_play.tiles.insert(0, new_tile);
 
-                        let first_tile_coordinates =
-                            match self.tile_before(&new_coordinates, play.orientation) {
-                                None => new_coordinates,
-                                Some(tile) => tile.coordinates,
-                            };
+                            let mut first_tile_coordinates = new_coordinates;
+                            while let Some(tile) =
+                                self.tile_before(&new_coordinates, play.orientation)
+                            {
+                                new_play.word.insert(0, tile.letter);
+                                first_tile_coordinates = tile.coordinates;
+                            }
 
-                        play_stack.push((
-                            new_play,
-                            new_hand.clone(),
-                            first_tile_coordinates,
-                            last_tile_coordinates,
-                        ));
+                            play_stack.push((
+                                new_play,
+                                new_hand.clone(),
+                                first_tile_coordinates,
+                                last_tile_coordinates,
+                            ));
+                        }
                     }
                 }
 
@@ -401,21 +442,25 @@ impl Board {
                             wildcard: *wildcard,
                         };
 
-                        new_play.word.push(*letter);
-                        new_play.tiles.push(new_tile);
+                        if self.validate_tile(&new_tile, !play.orientation, wordlist) {
+                            new_play.word.push(*letter);
+                            new_play.tiles.push(new_tile);
 
-                        let last_tile_coordinates =
-                            match self.tile_after(&new_coordinates, play.orientation) {
-                                None => new_coordinates,
-                                Some(tile) => tile.coordinates,
-                            };
+                            let mut last_tile_coordinates = new_coordinates;
+                            while let Some(tile) =
+                                self.tile_after(&new_coordinates, play.orientation)
+                            {
+                                new_play.word.push(tile.letter);
+                                last_tile_coordinates = tile.coordinates;
+                            }
 
-                        play_stack.push((
-                            new_play,
-                            new_hand.clone(),
-                            first_tile_coordinates,
-                            last_tile_coordinates,
-                        ));
+                            play_stack.push((
+                                new_play,
+                                new_hand.clone(),
+                                first_tile_coordinates,
+                                last_tile_coordinates,
+                            ));
+                        }
                     }
                 }
             }
@@ -430,7 +475,7 @@ impl Board {
         wordlist: &HashSet<String>,
         hand: &Vec<char>,
     ) -> Vec<Play> {
-        self.build_possible_plays(play, wordlist, hand, true)
+        self.build_possible_plays(play, wordlist, hand, true, false)
     }
 
     pub fn find_hook_plays(
@@ -471,7 +516,9 @@ impl Board {
                     orientation: !play.orientation,
                 };
 
-                plays.extend(self.build_possible_plays(&init_play, wordlist, &hand_copy, false));
+                plays.extend(
+                    self.build_possible_plays(&init_play, wordlist, &hand_copy, false, true),
+                );
             }
 
             if let Some(coordinates) = hook_after_coordinates {
@@ -485,7 +532,9 @@ impl Board {
                     orientation: !play.orientation,
                 };
 
-                plays.extend(self.build_possible_plays(&init_play, wordlist, &hand_copy, false));
+                plays.extend(
+                    self.build_possible_plays(&init_play, wordlist, &hand_copy, false, true),
+                );
             }
         }
 
@@ -553,8 +602,8 @@ impl Board {
     }
 }
 
-impl Display for Board {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+impl std::fmt::Display for Board {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for i in 0..Self::BOARD_SIZE {
             for j in 0..Self::BOARD_SIZE {
                 match &self.tiles[i][j] {
