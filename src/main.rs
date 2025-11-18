@@ -72,21 +72,47 @@ fn main() {
 
     // board.plays().iter().for_each(|it| println!("{:?}", it));
 
-    let plays = board.plays();
-    // let play = plays.last().unwrap();
-    let play = plays.first().unwrap();
+    let board_words = board.board_words();
+    let board_word = board_words.get(0).unwrap();
 
-    let extension_plays = board.find_extension_plays(play, &wordlist, &hand);
-
-    extension_plays
-        .iter()
-        .for_each(|it| println!("{}", it.word));
+    // let extension_plays = board.find_extension_plays(board_word, hand, &wordlist);
+    // extension_plays
+    //     .iter()
+    //     .for_each(|it| println!("{}", it.word));
     // extension_plays.iter().for_each(|it| println!("{:?}\n", it));
 
-    // let hook_plays = board.find_hook_plays(play, &wordlist, &hand);
+    // let play = extension_plays.get(7).unwrap();
+    // let play = scrabble::Play {
+    //     word: String::from("FUNG"),
+    //     tiles: vec![Tile {
+    //         letter: 'G',
+    //         coordinates: Coordinates { i: 6, j: 2 },
+    //         wildcard: false,
+    //     }],
+    //     hand: vec!['A', 'D', 'N', 'D', 'E', 'I'],
+    //     orientation: scrabble::Orientation::Vertical,
+    // };
+    // println!("{:?}", play);
 
+    // let hook_plays = board.find_hook_plays(&play, &wordlist);
     // hook_plays.iter().for_each(|it| println!("{}", it.word));
+    // hook_plays
+    //     .iter()
+    //     .for_each(|it| println!("{} {:?}", it.word, it.tiles.first().unwrap().coordinates));
     // hook_plays.iter().for_each(|it| println!("{:?}\n", it));
+
+    let perpendicular_plays = board.find_perpendicular_plays(board_word, hand, &wordlist);
+    // perpendicular_plays
+    //     .iter()
+    //     .for_each(|it| println!("{}", it.word));
+    perpendicular_plays
+        .iter()
+        .for_each(|it| println!("{:?}", it));
+
+    // let plays = board.find_possible_plays(&wordlist, &hand);
+
+    // plays.iter().for_each(|it| println!("{}", it.word));
+    // plays.iter().for_each(|it| println!("{:?}", it));
 
     println!("{}", board);
 }
