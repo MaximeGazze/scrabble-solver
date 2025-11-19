@@ -101,17 +101,25 @@ fn main() {
     //     .for_each(|it| println!("{} {:?}", it.word, it.tiles.first().unwrap().coordinates));
     // hook_plays.iter().for_each(|it| println!("{:?}\n", it));
 
-    let perpendicular_plays = board.find_perpendicular_plays(board_word, hand, &wordlist);
+    // let perpendicular_plays = board.find_perpendicular_plays(board_word, hand, &wordlist);
     // perpendicular_plays
     //     .iter()
     //     .for_each(|it| println!("{}", it.word));
-    perpendicular_plays
-        .iter()
-        .for_each(|it| println!("{:?}", it));
+    // perpendicular_plays
+    //     .iter()
+    //     .for_each(|it| println!("{:?}", it));
 
-    // let plays = board.find_possible_plays(&wordlist, &hand);
+    // let parallel_plays: Vec<_> = perpendicular_plays
+    //     .iter()
+    //     .filter(|play| play.len() == 1)
+    //     .flat_map(|play| board.find_parallel_plays(play, &wordlist))
+    //     .collect();
+    // parallel_plays.iter().for_each(|it| println!("{}", it.word));
+    // parallel_plays.iter().for_each(|it| println!("{:?}", it));
 
-    // plays.iter().for_each(|it| println!("{}", it.word));
+    let plays = board.find_possible_plays(&wordlist, &hand);
+
+    plays.iter().for_each(|it| println!("{}", it.word));
     // plays.iter().for_each(|it| println!("{:?}", it));
 
     println!("{}", board);

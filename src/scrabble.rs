@@ -377,6 +377,7 @@ impl Board {
         last_tile_coordinates: Coordinates,
         wordlist: &HashSet<String>,
         allow_skewer: bool,
+        allow_long_skewer: bool,
     ) -> Vec<Play> {
         let mut plays = BTreeSet::new();
         // let mut plays = HashSet::new();
@@ -399,14 +400,28 @@ impl Board {
                 None => false,
                 Some(coordinates) => self.tile_at(&coordinates).is_some(),
             };
-
             let append_would_skewer = match last_tile_coordinates.add(2, current_play.orientation) {
                 None => false,
                 Some(coordinates) => self.tile_at(&coordinates).is_some(),
             };
 
-            let allow_prepend = !prepend_out_of_bounds && (allow_skewer || !prepend_would_skewer);
-            let allow_append = !append_out_of_bounds && (allow_skewer || !append_would_skewer);
+            let prepend_would_long_skewer = prepend_would_skewer
+                && match first_tile_coordinates.sub(3, current_play.orientation) {
+                    None => false,
+                    Some(coordinates) => self.tile_at(&coordinates).is_some(),
+                };
+            let append_would_long_skewer = append_would_skewer
+                && match last_tile_coordinates.add(3, current_play.orientation) {
+                    None => false,
+                    Some(coordinates) => self.tile_at(&coordinates).is_some(),
+                };
+
+            let allow_prepend = !prepend_out_of_bounds
+                && (allow_skewer || !prepend_would_skewer)
+                && (allow_long_skewer || !prepend_would_long_skewer);
+            let allow_append = !append_out_of_bounds
+                && (allow_skewer || !append_would_skewer)
+                && (allow_long_skewer || !append_would_long_skewer);
 
             if current_play.len() > 0 && wordlist.contains(&current_play.word) {
                 plays.insert(current_play.clone());
@@ -531,6 +546,7 @@ impl Board {
             last_tile_coordinates,
             wordlist,
             true,
+            true,
         )
     }
 
@@ -561,6 +577,7 @@ impl Board {
             tile.coordinates,
             wordlist,
             false,
+            false,
         )
     }
 
@@ -586,14 +603,13 @@ impl Board {
                     orientation,
                 };
 
-                // FIXME add long skewer, this function should not be able to long skewer, only
-                // extension_plays
                 plays.extend(self.build_possible_plays(
                     init_play,
                     tile.coordinates,
                     tile.coordinates,
                     wordlist,
                     true,
+                    false,
                 ));
             }
         }
@@ -601,18 +617,41 @@ impl Board {
         plays
     }
 
-    // #[allow(dead_code)] // TODO
-    // pub fn find_parallel_plays(
-    //     &self,
-    //     play: &Play,
-    //     hand: &Vec<char>,
-    //     wordlist: &HashSet<String>,
-    //     one_tile_plays: &Vec<Play>,
-    // ) -> Vec<Play> {
-    //     Vec::new()
-    // }
+    pub fn find_parallel_plays(&self, play: &Play, wordlist: &HashSet<String>) -> Vec<Play> {
+        // FIXME this function is the exact same as the find hook one ... lol
+        assert!(play.len() == 1);
+
+        let orientation = !play.orientation;
+
+        let tile = play.tiles.first().expect("word tiles should not be empty");
+
+        let tile_before = self.tile_before(&tile.coordinates, orientation).is_some();
+        let tile_after = self.tile_after(&tile.coordinates, orientation).is_some();
+
+        if tile_before || tile_after {
+            return vec![];
+        }
+
+        let init_play = Play {
+            word: tile.letter.to_string(),
+            tiles: play.tiles.clone(),
+            hand: play.hand.clone(),
+            orientation,
+        };
+
+        self.build_possible_plays(
+            init_play,
+            tile.coordinates,
+            tile.coordinates,
+            wordlist,
+            false,
+            false,
+        )
+    }
 
     pub fn find_possible_plays(&self, wordlist: &HashSet<String>, hand: &Vec<char>) -> Vec<Play> {
+        // FIXME there might be duplicates, and therefore plays might need to become a HashSet here
+        // or in other function
         let mut plays: Vec<Play> = Vec::new();
 
         let current_board_words = self.board_words();
@@ -623,11 +662,10 @@ impl Board {
 
             plays.extend(extension_plays.clone());
 
-            let hook_plays: Vec<Play> = extension_plays
+            let hook_plays = extension_plays
                 .iter()
                 .filter(|play| play.len() == 1)
-                .flat_map(|play| self.find_hook_plays(play, wordlist))
-                .collect();
+                .flat_map(|play| self.find_hook_plays(play, wordlist));
 
             plays.extend(hook_plays.clone());
 
@@ -635,20 +673,14 @@ impl Board {
                 self.find_perpendicular_plays(current_board_word, hand.clone(), wordlist);
 
             plays.extend(perpendicular_plays.clone());
+
+            let parallel_plays = perpendicular_plays
+                .iter()
+                .filter(|play| play.len() == 1)
+                .flat_map(|play| self.find_parallel_plays(play, wordlist));
+
+            plays.extend(parallel_plays);
         }
-
-        // let one_tile_plays = plays
-        //     .iter()
-        //     .filter(|play| play.len() == 1)
-        //     .cloned()
-        //     .collect();
-
-        // for current_board_word in current_board_words.iter() {
-        //     let parallel_plays: Vec<Play> =
-        //         self.find_parallel_plays(current_board_word, hand, wordlist, &one_tile_plays);
-        //
-        //     plays.extend(parallel_plays.clone());
-        // }
 
         plays
     }
