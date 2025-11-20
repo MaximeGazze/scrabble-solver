@@ -191,6 +191,12 @@ impl Play {
     pub fn len(&self) -> usize {
         self.tiles.len()
     }
+
+    pub fn tile_at(&self, coordinates: &Coordinates) -> Option<&Tile> {
+        self.tiles
+            .iter()
+            .find(|tile| tile.coordinates == *coordinates)
+    }
 }
 
 impl PartialEq for Play {
@@ -225,12 +231,56 @@ impl PartialOrd for Play {
     }
 }
 
+pub enum SpecialTile {
+    Empty,
+    DoubleLetter,
+    TripleLetter,
+    DoubleWord,
+    TripleWord,
+}
+
+fn score_letter(letter: char) -> u32 {
+    match letter {
+        '*' => 0,
+        'A' | 'E' | 'I' | 'L' | 'N' | 'O' | 'R' | 'S' | 'T' | 'U' => 1,
+        'D' | 'G' => 2,
+        'B' | 'C' | 'M' | 'P' => 3,
+        'F' | 'H' | 'V' | 'W' | 'Y' => 4,
+        'K' => 5,
+        'J' | 'X' => 8,
+        'Q' | 'Z' => 10,
+        _ => panic!("invalid letter {}", letter),
+    }
+}
+
 pub struct Board {
     pub tiles: Vec<Vec<Option<Tile>>>,
 }
 
 impl Board {
-    pub const BOARD_SIZE: usize = 15;
+    const BOARD_SIZE: usize = 15;
+
+    #[rustfmt::skip]
+    const SPECIAL_TILE_BOARD: [[SpecialTile; Self::BOARD_SIZE]; Self::BOARD_SIZE] = {
+        use SpecialTile::*;
+        [
+            [TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, TripleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord],
+            [Empty, DoubleWord, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, DoubleWord, Empty],
+            [Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty],
+            [DoubleLetter, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, DoubleLetter],
+            [Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty],
+            [Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty],
+            [Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, Empty],
+            [TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord],
+            [Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, Empty],
+            [Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty],
+            [Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty],
+            [DoubleLetter, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, DoubleLetter],
+            [Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty],
+            [Empty, DoubleWord, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, DoubleWord, Empty],
+            [TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, TripleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord],
+        ]
+    };
 
     pub fn new() -> Self {
         Self {
@@ -339,8 +389,75 @@ impl Board {
     }
 
     pub fn score_play(&self, play: &Play) -> u32 {
-        // TODO
-        0
+        self.score_play_with_crosswords_check(play, true)
+    }
+
+    fn score_play_with_crosswords_check(&self, play: &Play, check_for_crosswords: bool) -> u32 {
+        let Some(first_tile) = play.tiles.first() else {
+            return 0;
+        };
+
+        let mut coordinates = first_tile.coordinates;
+
+        while let Some(new_coordinates) = coordinates
+            .sub(1, play.orientation)
+            .filter(|new_coordinates| self.tile_at(&new_coordinates).is_some())
+        {
+            coordinates = new_coordinates;
+        }
+
+        let mut score = 0;
+        let mut main_word_score = 0;
+        let mut main_word_multiplier = 1;
+
+        loop {
+            let board_tile = self.tile_at(&coordinates);
+            let play_tile = play.tile_at(&coordinates);
+
+            assert!(!board_tile.is_some() || !play_tile.is_some());
+
+            if board_tile.is_none() && play_tile.is_none() {
+                break;
+            }
+
+            if let Some(tile) = board_tile {
+                main_word_score += score_letter(tile.letter);
+            }
+
+            if let Some(tile) = play_tile {
+                let mut letter_multiplier = 1;
+
+                match Self::SPECIAL_TILE_BOARD[coordinates.i][coordinates.j] {
+                    SpecialTile::Empty => {}
+                    SpecialTile::DoubleLetter => letter_multiplier = 2,
+                    SpecialTile::TripleLetter => letter_multiplier = 3,
+                    SpecialTile::DoubleWord => main_word_multiplier = 2,
+                    SpecialTile::TripleWord => main_word_multiplier = 3,
+                }
+
+                main_word_score += letter_multiplier * score_letter(tile.letter);
+            }
+
+            if check_for_crosswords
+                && (self.tile_before(&coordinates, !play.orientation).is_some()
+                    || self.tile_after(&coordinates, !play.orientation).is_some())
+            {
+                score += self.score_play_with_crosswords_check(play, false);
+            }
+
+            match coordinates.add(1, play.orientation) {
+                None => break,
+                Some(new_coordinates) => coordinates = new_coordinates,
+            }
+        }
+
+        score += main_word_multiplier * main_word_score;
+
+        if play.len() == 7 {
+            score += 50;
+        }
+
+        score
     }
 
     pub fn validate_tile(
