@@ -18,53 +18,18 @@ fn main() {
     let mut board = Board::new();
     let hand = vec!['A', 'D', 'N', 'D', 'E', 'I', 'G'];
 
-    board.tiles[3][2] = Some(Tile {
-        letter: 'F',
-        coordinates: Coordinates { i: 3, j: 2 },
-        wildcard: false,
-    });
+    let tiles = [
+        Tile::new('F', Coordinates::new(3, 2), false),
+        Tile::new('U', Coordinates::new(3, 3), false),
+        Tile::new('C', Coordinates::new(3, 4), false),
+        Tile::new('K', Coordinates::new(3, 5), false),
+        Tile::new('Y', Coordinates::new(4, 0), false),
+        Tile::new('O', Coordinates::new(4, 1), false),
+        Tile::new('U', Coordinates::new(4, 2), false),
+        Tile::new('N', Coordinates::new(5, 2), false),
+    ];
 
-    board.tiles[3][3] = Some(Tile {
-        letter: 'U',
-        coordinates: Coordinates { i: 3, j: 3 },
-        wildcard: false,
-    });
-
-    board.tiles[3][4] = Some(Tile {
-        letter: 'C',
-        coordinates: Coordinates { i: 3, j: 4 },
-        wildcard: false,
-    });
-
-    board.tiles[3][5] = Some(Tile {
-        letter: 'K',
-        coordinates: Coordinates { i: 3, j: 5 },
-        wildcard: false,
-    });
-
-    board.tiles[4][0] = Some(Tile {
-        letter: 'Y',
-        coordinates: Coordinates { i: 4, j: 0 },
-        wildcard: false,
-    });
-
-    board.tiles[4][1] = Some(Tile {
-        letter: 'O',
-        coordinates: Coordinates { i: 4, j: 1 },
-        wildcard: false,
-    });
-
-    board.tiles[4][2] = Some(Tile {
-        letter: 'U',
-        coordinates: Coordinates { i: 4, j: 2 },
-        wildcard: false,
-    });
-
-    board.tiles[5][2] = Some(Tile {
-        letter: 'N',
-        coordinates: Coordinates { i: 5, j: 2 },
-        wildcard: false,
-    });
+    tiles.into_iter().for_each(|tile| board.insert_tile(tile));
 
     let wordlist = read_wordlist("wordlist.txt");
 
@@ -72,8 +37,8 @@ fn main() {
 
     // board.plays().iter().for_each(|it| println!("{:?}", it));
 
-    let board_words = board.board_words();
-    let board_word = board_words.get(0).unwrap();
+    // let board_words = board.board_words();
+    // let board_word = board_words.get(0).unwrap();
 
     // let extension_plays = board.find_extension_plays(board_word, hand, &wordlist);
     // extension_plays
@@ -119,7 +84,16 @@ fn main() {
 
     let plays = board.find_possible_plays(&wordlist, &hand);
 
-    plays.iter().for_each(|it| println!("{}", it.word));
+    let mut score_plays: Vec<_> = plays
+        .iter()
+        .map(|play| (play, board.score_play(play)))
+        .collect();
+
+    score_plays.sort_by(|(_, score), (_, other_score)| score.cmp(other_score));
+
+    score_plays.into_iter().for_each(|x| println!("{:?}", x));
+
+    // plays.iter().for_each(|it| println!("{}", it.word));
     // plays.iter().for_each(|it| println!("{:?}", it));
 
     println!("{}", board);

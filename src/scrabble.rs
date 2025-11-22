@@ -1,17 +1,21 @@
-use std::{
-    cmp::Ordering,
-    collections::{BTreeSet, HashSet},
-    hash::{Hash, Hasher},
-    ops::Not,
-};
+use std::{collections::HashSet, hash::Hash, ops::Not};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg(test)]
+mod tests;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Coordinates {
-    pub i: usize,
-    pub j: usize,
+    i: usize,
+    j: usize,
 }
 
 impl Coordinates {
+    pub fn new(i: usize, j: usize) -> Self {
+        assert!(i < Board::BOARD_SIZE && j < Board::BOARD_SIZE);
+
+        Self { i, j }
+    }
+
     pub fn add(&self, value: usize, orientation: Orientation) -> Option<Self> {
         match orientation {
             Orientation::Vertical => {
@@ -63,14 +67,7 @@ impl Coordinates {
     }
 }
 
-impl Hash for Coordinates {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.i.hash(state);
-        self.j.hash(state);
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Orientation {
     Horizontal,
     Vertical,
@@ -87,27 +84,20 @@ impl Not for Orientation {
     }
 }
 
-impl Hash for Orientation {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Orientation::Horizontal => state.write_u8(0),
-            Orientation::Vertical => state.write_u8(1),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Tile {
-    pub letter: char,
-    pub coordinates: Coordinates,
-    pub wildcard: bool,
+    letter: char,
+    coordinates: Coordinates,
+    wildcard: bool,
 }
 
-impl Hash for Tile {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.letter.hash(state);
-        self.coordinates.hash(state);
-        self.wildcard.hash(state);
+impl Tile {
+    pub fn new(letter: char, coordinates: Coordinates, wildcard: bool) -> Self {
+        Self {
+            letter,
+            coordinates,
+            wildcard,
+        }
     }
 }
 
@@ -148,11 +138,11 @@ impl<'a> Iterator for TileIterator<'a> {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct BoardWord {
-    pub word: String,
-    pub tiles: Vec<Tile>,
-    pub orientation: Orientation,
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct BoardWord {
+    word: String,
+    tiles: Vec<Tile>,
+    orientation: Orientation,
 }
 
 impl BoardWord {
@@ -161,25 +151,7 @@ impl BoardWord {
     }
 }
 
-impl PartialEq for BoardWord {
-    fn eq(&self, other: &Self) -> bool {
-        self.word == other.word
-            && self.tiles == other.tiles
-            && self.orientation == other.orientation
-    }
-}
-
-impl Eq for BoardWord {}
-
-impl Hash for BoardWord {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.word.hash(state);
-        self.tiles.hash(state);
-        self.orientation.hash(state);
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Play {
     pub word: String,
     pub tiles: Vec<Tile>,
@@ -196,38 +168,6 @@ impl Play {
         self.tiles
             .iter()
             .find(|tile| tile.coordinates == *coordinates)
-    }
-}
-
-impl PartialEq for Play {
-    fn eq(&self, other: &Self) -> bool {
-        self.word == other.word
-            && self.tiles == other.tiles
-            && self.hand == other.hand
-            && self.orientation == other.orientation
-    }
-}
-
-impl Eq for Play {}
-
-impl Hash for Play {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.word.hash(state);
-        self.tiles.hash(state);
-        self.hand.hash(state);
-        self.orientation.hash(state);
-    }
-}
-
-impl Ord for Play {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.word.cmp(&other.word)
-    }
-}
-
-impl PartialOrd for Play {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
 
@@ -288,6 +228,13 @@ impl Board {
         }
     }
 
+    pub fn insert_tile(&mut self, tile: Tile) {
+        let i = tile.coordinates.i;
+        let j = tile.coordinates.j;
+
+        self.tiles[i][j] = Some(tile);
+    }
+
     pub fn tile_at(&self, coordinates: &Coordinates) -> Option<&Tile> {
         self.tiles.get(coordinates.i)?.get(coordinates.j)?.as_ref()
     }
@@ -316,7 +263,7 @@ impl Board {
         self.tile_at(&coordinates.add(1, orientation)?)
     }
 
-    pub fn board_word_at(
+    fn board_word_at(
         &self,
         mut coordinates: Coordinates,
         orientation: Orientation,
@@ -361,7 +308,7 @@ impl Board {
         TileIterator::from_board(self)
     }
 
-    pub fn board_words(&self) -> Vec<BoardWord> {
+    fn board_words(&self) -> Vec<BoardWord> {
         let mut board_words = Vec::new();
 
         for tile in self.tiles() {
@@ -495,9 +442,8 @@ impl Board {
         wordlist: &HashSet<String>,
         allow_skewer: bool,
         allow_long_skewer: bool,
-    ) -> Vec<Play> {
-        let mut plays = BTreeSet::new();
-        // let mut plays = HashSet::new();
+    ) -> HashSet<Play> {
+        let mut plays = HashSet::new();
         let mut play_stack: Vec<(Play, Coordinates, Coordinates)> = Vec::new();
 
         play_stack.push((play, first_tile_coordinates, last_tile_coordinates));
@@ -544,15 +490,13 @@ impl Board {
                 plays.insert(current_play.clone());
             }
 
-            let current_hand: Vec<(usize, char, bool)> = current_play
-                .hand
-                .iter()
-                .enumerate()
-                .flat_map(|(i, hand_letter)| match hand_letter {
-                    '*' => ('A'..='Z').map(|it| (i, it, true)).collect(),
-                    letter => vec![(i, *letter, false)],
-                })
-                .collect();
+            let current_hand =
+                current_play.hand.iter().enumerate().flat_map(
+                    |(i, hand_letter)| match hand_letter {
+                        '*' => ('A'..='Z').map(move |it| (i, it, true)).collect(),
+                        letter => vec![(i, *letter, false)],
+                    },
+                );
 
             for (i, letter, wildcard) in current_hand.into_iter() {
                 let mut new_hand = current_play.hand.clone();
@@ -578,7 +522,7 @@ impl Board {
 
                             let mut first_tile_coordinates = new_coordinates;
                             while let Some(tile) =
-                                self.tile_before(&new_coordinates, current_play.orientation)
+                                self.tile_before(&first_tile_coordinates, current_play.orientation)
                             {
                                 new_play.word.insert(0, tile.letter);
                                 first_tile_coordinates = tile.coordinates;
@@ -613,7 +557,7 @@ impl Board {
 
                             let mut last_tile_coordinates = new_coordinates;
                             while let Some(tile) =
-                                self.tile_after(&new_coordinates, current_play.orientation)
+                                self.tile_after(&last_tile_coordinates, current_play.orientation)
                             {
                                 new_play.word.push(tile.letter);
                                 last_tile_coordinates = tile.coordinates;
@@ -630,15 +574,15 @@ impl Board {
             }
         }
 
-        plays.into_iter().collect()
+        plays
     }
 
-    pub fn find_extension_plays(
+    fn find_extension_plays(
         &self,
         board_word: &BoardWord,
         hand: Vec<char>,
         wordlist: &HashSet<String>,
-    ) -> Vec<Play> {
+    ) -> HashSet<Play> {
         let play = Play {
             word: board_word.word.clone(),
             tiles: vec![],
@@ -667,7 +611,7 @@ impl Board {
         )
     }
 
-    pub fn find_hook_plays(&self, play: &Play, wordlist: &HashSet<String>) -> Vec<Play> {
+    pub fn find_hook_plays(&self, play: &Play, wordlist: &HashSet<String>) -> HashSet<Play> {
         assert!(play.len() == 1);
 
         let orientation = !play.orientation;
@@ -678,7 +622,7 @@ impl Board {
         let tile_after = self.tile_after(&tile.coordinates, orientation).is_some();
 
         if tile_before || tile_after {
-            return vec![];
+            return HashSet::new();
         }
 
         let init_play = Play {
@@ -698,13 +642,13 @@ impl Board {
         )
     }
 
-    pub fn find_perpendicular_plays(
+    fn find_perpendicular_plays(
         &self,
         board_word: &BoardWord,
         hand: Vec<char>,
         wordlist: &HashSet<String>,
-    ) -> Vec<Play> {
-        let mut plays = vec![];
+    ) -> HashSet<Play> {
+        let mut plays = HashSet::new();
 
         let orientation = !board_word.orientation;
 
@@ -734,7 +678,7 @@ impl Board {
         plays
     }
 
-    pub fn find_parallel_plays(&self, play: &Play, wordlist: &HashSet<String>) -> Vec<Play> {
+    pub fn find_parallel_plays(&self, play: &Play, wordlist: &HashSet<String>) -> HashSet<Play> {
         // FIXME this function is the exact same as the find hook one ... lol
         assert!(play.len() == 1);
 
@@ -746,7 +690,7 @@ impl Board {
         let tile_after = self.tile_after(&tile.coordinates, orientation).is_some();
 
         if tile_before || tile_after {
-            return vec![];
+            return HashSet::new();
         }
 
         let init_play = Play {
@@ -766,10 +710,12 @@ impl Board {
         )
     }
 
-    pub fn find_possible_plays(&self, wordlist: &HashSet<String>, hand: &Vec<char>) -> Vec<Play> {
-        // FIXME there might be duplicates, and therefore plays might need to become a HashSet here
-        // or in other function
-        let mut plays: Vec<Play> = Vec::new();
+    pub fn find_possible_plays(
+        &self,
+        wordlist: &HashSet<String>,
+        hand: &Vec<char>,
+    ) -> HashSet<Play> {
+        let mut plays: HashSet<Play> = HashSet::new();
 
         let current_board_words = self.board_words();
 
@@ -784,7 +730,7 @@ impl Board {
                 .filter(|play| play.len() == 1)
                 .flat_map(|play| self.find_hook_plays(play, wordlist));
 
-            plays.extend(hook_plays.clone());
+            plays.extend(hook_plays);
 
             let perpendicular_plays =
                 self.find_perpendicular_plays(current_board_word, hand.clone(), wordlist);
