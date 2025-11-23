@@ -1,6 +1,5 @@
 mod scrabble;
 
-use scrabble::{Board, Coordinates, Tile};
 use std::{collections::HashSet, fs, path::Path};
 
 fn read_wordlist<P>(path: P) -> HashSet<String>
@@ -15,23 +14,23 @@ where
 }
 
 fn main() {
-    let mut board = Board::new();
-    let hand = vec!['A', 'D', 'N', 'D', 'E', 'I', 'G'];
-
-    let tiles = [
-        Tile::new('F', Coordinates::new(3, 2), false),
-        Tile::new('U', Coordinates::new(3, 3), false),
-        Tile::new('C', Coordinates::new(3, 4), false),
-        Tile::new('K', Coordinates::new(3, 5), false),
-        Tile::new('Y', Coordinates::new(4, 0), false),
-        Tile::new('O', Coordinates::new(4, 1), false),
-        Tile::new('U', Coordinates::new(4, 2), false),
-        Tile::new('N', Coordinates::new(5, 2), false),
-    ];
-
-    tiles.into_iter().for_each(|tile| board.insert_tile(tile));
-
-    let wordlist = read_wordlist("wordlist.txt");
+    // let mut board = Board::new();
+    // let hand = vec!['A', 'D', 'N', 'D', 'E', 'I', 'G'];
+    //
+    // let tiles = [
+    //     Tile::new('F', Coordinates::new(3, 2), false),
+    //     Tile::new('U', Coordinates::new(3, 3), false),
+    //     Tile::new('C', Coordinates::new(3, 4), false),
+    //     Tile::new('K', Coordinates::new(3, 5), false),
+    //     Tile::new('Y', Coordinates::new(4, 0), false),
+    //     Tile::new('O', Coordinates::new(4, 1), false),
+    //     Tile::new('U', Coordinates::new(4, 2), false),
+    //     Tile::new('N', Coordinates::new(5, 2), false),
+    // ];
+    //
+    // tiles.into_iter().for_each(|tile| board.insert_tile(tile));
+    //
+    // let wordlist = read_wordlist("wordlist.txt");
 
     // board.tiles().for_each(|it| println!("{:?}", it));
 
@@ -82,19 +81,19 @@ fn main() {
     // parallel_plays.iter().for_each(|it| println!("{}", it.word));
     // parallel_plays.iter().for_each(|it| println!("{:?}", it));
 
-    let plays = board.find_possible_plays(&wordlist, &hand);
-
-    let mut score_plays: Vec<_> = plays
-        .iter()
-        .map(|play| (play, board.score_play(play)))
-        .collect();
-
-    score_plays.sort_by(|(_, score), (_, other_score)| score.cmp(other_score));
-
-    score_plays.into_iter().for_each(|x| println!("{:?}", x));
+    // let plays = board.find_possible_plays(&wordlist, &hand);
+    //
+    // let mut score_plays: Vec<_> = plays
+    //     .iter()
+    //     .map(|play| (play, board.score_play(play)))
+    //     .collect();
+    //
+    // score_plays.sort_by(|(_, score), (_, other_score)| score.cmp(other_score));
+    //
+    // score_plays.into_iter().for_each(|x| println!("{:?}", x));
 
     // plays.iter().for_each(|it| println!("{}", it.word));
     // plays.iter().for_each(|it| println!("{:?}", it));
 
-    println!("{}", board);
+    // println!("{}", board);
 }

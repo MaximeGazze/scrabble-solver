@@ -255,7 +255,10 @@ fn tile_iterator() {
         board.insert_tile(tile);
     }
 
-    let mut tile_iter = TileIterator::from_board(&board);
+    let mut tile_iter = TileIterator {
+        board: &board,
+        coordinates: Coordinates { i: 0, j: 0 },
+    };
 
     for tile in tiles {
         assert_eq!(tile_iter.next(), Some(tile).as_ref());
@@ -263,8 +266,6 @@ fn tile_iterator() {
 
     assert_eq!(tile_iter.next(), None);
 }
-
-// TODO test tile before after etc
 
 #[test]
 fn validate_tile_standalone() {
@@ -621,7 +622,7 @@ fn find_extension_plays_horizontal() {
         orientation: Orientation::Horizontal,
     };
 
-    let hand = vec!['P', 'A', 'S', 'S', 'M', 'L', 'L'];
+    let hand = Hand::from(['P', 'A', 'S', 'S', 'M', 'L', 'L']);
 
     let wordlist = HashSet::from([
         String::from("WORD"),
@@ -639,7 +640,7 @@ fn find_extension_plays_horizontal() {
                 coordinates: Coordinates { i: 3, j: 3 },
                 wildcard: false,
             }],
-            hand: vec!['P', 'A', 'S', 'M', 'L', 'L'],
+            hand: Hand::from(['P', 'A', 'S', 'M', 'L', 'L']),
             orientation: Orientation::Horizontal,
         },
         Play {
@@ -666,7 +667,7 @@ fn find_extension_plays_horizontal() {
                     wildcard: false,
                 },
             ],
-            hand: vec!['M', 'L', 'L'],
+            hand: Hand::from(['M', 'L', 'L']),
             orientation: Orientation::Horizontal,
         },
         Play {
@@ -676,7 +677,7 @@ fn find_extension_plays_horizontal() {
                 coordinates: Coordinates { i: 3, j: 8 },
                 wildcard: false,
             }],
-            hand: vec!['P', 'A', 'S', 'M', 'L', 'L'],
+            hand: Hand::from(['P', 'A', 'S', 'M', 'L', 'L']),
             orientation: Orientation::Horizontal,
         },
     ]);
@@ -723,7 +724,7 @@ fn find_extension_plays_vertical() {
         orientation: Orientation::Vertical,
     };
 
-    let hand = vec!['P', 'A', 'S', 'S', 'M', 'L', 'L'];
+    let hand = Hand::from(['P', 'A', 'S', 'S', 'M', 'L', 'L']);
 
     let wordlist = HashSet::from([
         String::from("WORD"),
@@ -741,7 +742,7 @@ fn find_extension_plays_vertical() {
                 coordinates: Coordinates { i: 3, j: 3 },
                 wildcard: false,
             }],
-            hand: vec!['P', 'A', 'S', 'M', 'L', 'L'],
+            hand: Hand::from(['P', 'A', 'S', 'M', 'L', 'L']),
             orientation: Orientation::Vertical,
         },
         Play {
@@ -768,7 +769,7 @@ fn find_extension_plays_vertical() {
                     wildcard: false,
                 },
             ],
-            hand: vec!['M', 'L', 'L'],
+            hand: Hand::from(['M', 'L', 'L']),
             orientation: Orientation::Vertical,
         },
         Play {
@@ -778,7 +779,7 @@ fn find_extension_plays_vertical() {
                 coordinates: Coordinates { i: 8, j: 3 },
                 wildcard: false,
             }],
-            hand: vec!['P', 'A', 'S', 'M', 'L', 'L'],
+            hand: Hand::from(['P', 'A', 'S', 'M', 'L', 'L']),
             orientation: Orientation::Vertical,
         },
     ]);
@@ -857,7 +858,7 @@ fn find_extension_plays_skewer_before() {
         orientation: Orientation::Horizontal,
     };
 
-    let hand = vec!['P', 'A', 'S', 'S', 'K', 'E', 'Y'];
+    let hand = Hand::from(['P', 'A', 'S', 'S', 'K', 'E', 'Y']);
 
     let wordlist = HashSet::from([
         String::from("WORD"),
@@ -884,7 +885,7 @@ fn find_extension_plays_skewer_before() {
                 wildcard: false,
             },
         ],
-        hand: vec!['A', 'K', 'E', 'Y'],
+        hand: Hand::from(['A', 'K', 'E', 'Y']),
         orientation: Orientation::Horizontal,
     }]);
 
@@ -962,7 +963,7 @@ fn find_extension_plays_skewer_after() {
         orientation: Orientation::Horizontal,
     };
 
-    let hand = vec!['P', 'L', 'A', 'Y', 'I', 'N', 'G'];
+    let hand = Hand::from(['P', 'L', 'A', 'Y', 'I', 'N', 'G']);
 
     let wordlist = HashSet::from([
         String::from("WORD"),
@@ -989,7 +990,7 @@ fn find_extension_plays_skewer_after() {
                 wildcard: false,
             },
         ],
-        hand: vec!['A', 'I', 'N', 'G'],
+        hand: Hand::from(['A', 'I', 'N', 'G']),
         orientation: Orientation::Horizontal,
     }]);
 
@@ -1067,7 +1068,7 @@ fn find_extension_plays_combine() {
         orientation: Orientation::Vertical,
     };
 
-    let hand = vec!['A', 'B', 'C', 'D', 'S', 'E', 'F'];
+    let hand = Hand::from(['A', 'B', 'C', 'D', 'S', 'E', 'F']);
 
     let wordlist = HashSet::from([
         String::from("SHORT"),
@@ -1082,11 +1083,165 @@ fn find_extension_plays_combine() {
             coordinates: Coordinates { i: 6, j: 1 },
             wildcard: false,
         }],
-        hand: vec!['A', 'B', 'C', 'D', 'E', 'F'],
+        hand: Hand::from(['A', 'B', 'C', 'D', 'E', 'F']),
         orientation: Orientation::Vertical,
     }]);
 
     let result = board.find_extension_plays(&board_word, hand, &wordlist);
+
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn find_hook_plays() {
+    let mut board = Board::new();
+
+    let tiles = vec![
+        Tile {
+            letter: 'W',
+            coordinates: Coordinates { i: 3, j: 8 },
+            wildcard: false,
+        },
+        Tile {
+            letter: 'O',
+            coordinates: Coordinates { i: 4, j: 8 },
+            wildcard: false,
+        },
+        Tile {
+            letter: 'R',
+            coordinates: Coordinates { i: 5, j: 8 },
+            wildcard: false,
+        },
+        Tile {
+            letter: 'D',
+            coordinates: Coordinates { i: 6, j: 8 },
+            wildcard: false,
+        },
+    ];
+
+    for tile in &tiles {
+        board.insert_tile(*tile);
+    }
+
+    let play = Play {
+        word: String::from("WORDS"),
+        tiles: vec![Tile {
+            letter: 'S',
+            coordinates: Coordinates { i: 7, j: 8 },
+            wildcard: false,
+        }],
+        hand: Hand::from(['L', 'A', 'S', 'O', 'A', 'F']),
+        orientation: Orientation::Vertical,
+    };
+
+    let wordlist = HashSet::from([
+        String::from("WORD"),
+        String::from("WORDS"),
+        String::from("LASSO"),
+        String::from("LOAF"),
+        String::from("LOAFS"),
+    ]);
+
+    let expected = HashSet::from([
+        Play {
+            word: String::from("LASSO"),
+            tiles: vec![
+                Tile {
+                    letter: 'L',
+                    coordinates: Coordinates { i: 7, j: 6 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'A',
+                    coordinates: Coordinates { i: 7, j: 7 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'S',
+                    coordinates: Coordinates { i: 7, j: 8 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'S',
+                    coordinates: Coordinates { i: 7, j: 9 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'O',
+                    coordinates: Coordinates { i: 7, j: 10 },
+                    wildcard: false,
+                },
+            ],
+            hand: Hand::from(['A', 'F']),
+            orientation: Orientation::Horizontal,
+        },
+        Play {
+            word: String::from("LASSO"),
+            tiles: vec![
+                Tile {
+                    letter: 'L',
+                    coordinates: Coordinates { i: 7, j: 5 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'A',
+                    coordinates: Coordinates { i: 7, j: 6 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'S',
+                    coordinates: Coordinates { i: 7, j: 7 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'S',
+                    coordinates: Coordinates { i: 7, j: 8 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'O',
+                    coordinates: Coordinates { i: 7, j: 9 },
+                    wildcard: false,
+                },
+            ],
+            hand: Hand::from(['A', 'F']),
+            orientation: Orientation::Horizontal,
+        },
+        Play {
+            word: String::from("LOAFS"),
+            tiles: vec![
+                Tile {
+                    letter: 'L',
+                    coordinates: Coordinates { i: 7, j: 4 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'O',
+                    coordinates: Coordinates { i: 7, j: 5 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'A',
+                    coordinates: Coordinates { i: 7, j: 6 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'F',
+                    coordinates: Coordinates { i: 7, j: 7 },
+                    wildcard: false,
+                },
+                Tile {
+                    letter: 'S',
+                    coordinates: Coordinates { i: 7, j: 8 },
+                    wildcard: false,
+                },
+            ],
+            hand: Hand::from(['S', 'A']),
+            orientation: Orientation::Horizontal,
+        },
+    ]);
+
+    let result = board.find_hook_plays(&play, &wordlist);
 
     assert_eq!(result, expected);
 }

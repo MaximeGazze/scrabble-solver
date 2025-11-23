@@ -1,4 +1,8 @@
-use std::{collections::HashSet, hash::Hash, ops::Not};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    hash::Hash,
+    ops::Not,
+};
 
 #[cfg(test)]
 mod tests;
@@ -106,15 +110,6 @@ pub struct TileIterator<'a> {
     coordinates: Coordinates,
 }
 
-impl<'a> TileIterator<'a> {
-    pub fn from_board(board: &'a Board) -> Self {
-        TileIterator {
-            board,
-            coordinates: Coordinates { i: 0, j: 0 },
-        }
-    }
-}
-
 impl<'a> Iterator for TileIterator<'a> {
     type Item = &'a Tile;
 
@@ -151,12 +146,158 @@ impl BoardWord {
     }
 }
 
+pub struct HandLetter {
+    letter: char,
+    wildcard: bool,
+}
+
+impl HandLetter {
+    pub fn is_wildcard(&self) -> bool {
+        self.wildcard
+    }
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Hand {
+    letters: BTreeMap<char, u32>,
+}
+
+impl Hand {
+    pub fn add(&mut self, letter: char) {
+        if let Some(entry_value) = self.letters.get_mut(&letter) {
+            *entry_value += 1
+        } else {
+            self.letters.insert(letter, 1);
+        }
+    }
+
+    pub fn remove(&mut self, letter: &char) {
+        let count_entry = self.letters.get_mut(letter);
+
+        if let Some(count) = count_entry {
+            *count -= 1;
+
+            if *count <= 0 {
+                self.letters.remove(letter);
+            }
+        }
+    }
+
+    pub fn remove_handletter(&mut self, letter: &HandLetter) {
+        let letter_char = if letter.is_wildcard() {
+            '*'
+        } else {
+            letter.letter
+        };
+
+        self.remove(&letter_char)
+    }
+
+    pub fn iter(&self) -> HandIterator<'_> {
+        HandIterator::new(self)
+    }
+}
+
+impl<const N: usize> From<[char; N]> for Hand {
+    fn from(value: [char; N]) -> Self {
+        let mut hand = Hand {
+            letters: BTreeMap::new(),
+        };
+
+        for c in value {
+            hand.add(c);
+        }
+
+        hand
+    }
+}
+
+pub struct HandIterator<'a> {
+    chars: std::collections::btree_map::Iter<'a, char, u32>,
+    current_char: char,
+    current_char_count: u32,
+    wildcard_char: Option<char>,
+}
+
+impl<'a> HandIterator<'a> {
+    pub fn new(hand: &'a Hand) -> Self {
+        HandIterator {
+            chars: hand.letters.iter(),
+            current_char: ' ',
+            current_char_count: 0,
+            wildcard_char: None,
+        }
+    }
+}
+
+impl<'a> Iterator for HandIterator<'a> {
+    type Item = HandLetter;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(wildcard_char) = self.wildcard_char {
+            let next_wildcard_char =
+                std::char::from_u32(wildcard_char as u32 + 1).expect("char should be valid");
+
+            if next_wildcard_char >= 'Z' {
+                self.wildcard_char = None;
+            } else {
+                return Some(HandLetter {
+                    letter: next_wildcard_char,
+                    wildcard: true,
+                });
+            }
+        }
+
+        if self.current_char_count > 0 {
+            self.current_char_count -= 1;
+
+            return match self.current_char {
+                '*' => {
+                    self.wildcard_char = Some('A');
+
+                    Some(HandLetter {
+                        letter: 'A',
+                        wildcard: true,
+                    })
+                }
+                letter => Some(HandLetter {
+                    letter,
+                    wildcard: false,
+                }),
+            };
+        }
+
+        match self.chars.next() {
+            None => None,
+            Some((letter, count)) => {
+                self.current_char = *letter;
+                self.current_char_count = count - 1;
+
+                match letter {
+                    '*' => {
+                        self.wildcard_char = Some('A');
+
+                        Some(HandLetter {
+                            letter: 'A',
+                            wildcard: true,
+                        })
+                    }
+                    letter => Some(HandLetter {
+                        letter: *letter,
+                        wildcard: false,
+                    }),
+                }
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Play {
-    pub word: String,
-    pub tiles: Vec<Tile>,
-    pub hand: Vec<char>,
-    pub orientation: Orientation,
+    word: String,
+    tiles: Vec<Tile>,
+    hand: Hand,
+    orientation: Orientation,
 }
 
 impl Play {
@@ -305,7 +446,10 @@ impl Board {
     }
 
     pub fn tiles(&self) -> TileIterator<'_> {
-        TileIterator::from_board(self)
+        TileIterator {
+            board: self,
+            coordinates: Coordinates { i: 0, j: 0 },
+        }
     }
 
     fn board_words(&self) -> Vec<BoardWord> {
@@ -344,6 +488,9 @@ impl Board {
             return 0;
         };
 
+        let mut score = 0;
+        let mut main_word_score = 0;
+        let mut main_word_multiplier = 1;
         let mut coordinates = first_tile.coordinates;
 
         while let Some(new_coordinates) = coordinates
@@ -352,10 +499,6 @@ impl Board {
         {
             coordinates = new_coordinates;
         }
-
-        let mut score = 0;
-        let mut main_word_score = 0;
-        let mut main_word_multiplier = 1;
 
         loop {
             let board_tile = self.tile_at(&coordinates);
@@ -489,17 +632,12 @@ impl Board {
                 continue;
             }
 
-            let current_hand =
-                current_play.hand.iter().enumerate().flat_map(
-                    |(i, hand_letter)| match hand_letter {
-                        '*' => ('A'..='Z').map(move |it| (i, it, true)).collect(),
-                        letter => vec![(i, *letter, false)],
-                    },
-                );
-
-            for (i, letter, wildcard) in current_hand.into_iter() {
+            for hand_letter in current_play.hand.iter() {
                 let mut new_hand = current_play.hand.clone();
-                new_hand.remove(i);
+                new_hand.remove_handletter(&hand_letter);
+
+                let letter = hand_letter.letter;
+                let wildcard = hand_letter.wildcard;
 
                 if allow_prepend {
                     if let Some(new_coordinates) =
@@ -579,7 +717,7 @@ impl Board {
     fn find_extension_plays(
         &self,
         board_word: &BoardWord,
-        hand: Vec<char>,
+        hand: Hand,
         wordlist: &HashSet<String>,
     ) -> HashSet<Play> {
         let play = Play {
@@ -643,7 +781,7 @@ impl Board {
     fn find_perpendicular_plays(
         &self,
         board_word: &BoardWord,
-        hand: Vec<char>,
+        hand: Hand,
         wordlist: &HashSet<String>,
     ) -> HashSet<Play> {
         let mut plays = HashSet::new();
@@ -705,11 +843,7 @@ impl Board {
         )
     }
 
-    pub fn find_possible_plays(
-        &self,
-        wordlist: &HashSet<String>,
-        hand: &Vec<char>,
-    ) -> HashSet<Play> {
+    pub fn find_possible_plays(&self, wordlist: &HashSet<String>, hand: Hand) -> HashSet<Play> {
         let mut plays: HashSet<Play> = HashSet::new();
         let current_board_words = self.board_words();
 
