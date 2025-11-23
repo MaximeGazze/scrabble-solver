@@ -289,7 +289,7 @@ impl Board {
 
         while let Some(current_tile) = self.tile_at(&coordinates) {
             board_word.word.push(current_tile.letter);
-            board_word.tiles.push(current_tile.clone());
+            board_word.tiles.push(*current_tile);
 
             match orientation {
                 Orientation::Vertical => coordinates.i += 1,
@@ -458,26 +458,21 @@ impl Board {
                 .add(1, current_play.orientation)
                 .is_none();
 
-            let prepend_would_skewer = match first_tile_coordinates.sub(2, current_play.orientation)
-            {
-                None => false,
-                Some(coordinates) => self.tile_at(&coordinates).is_some(),
-            };
-            let append_would_skewer = match last_tile_coordinates.add(2, current_play.orientation) {
-                None => false,
-                Some(coordinates) => self.tile_at(&coordinates).is_some(),
-            };
+            let prepend_would_skewer = first_tile_coordinates
+                .sub(2, current_play.orientation)
+                .map_or(false, |coordinates| self.tile_at(&coordinates).is_some());
+            let append_would_skewer = last_tile_coordinates
+                .add(2, current_play.orientation)
+                .map_or(false, |coordinates| self.tile_at(&coordinates).is_some());
 
             let prepend_would_long_skewer = prepend_would_skewer
-                && match first_tile_coordinates.sub(3, current_play.orientation) {
-                    None => false,
-                    Some(coordinates) => self.tile_at(&coordinates).is_some(),
-                };
+                && first_tile_coordinates
+                    .sub(3, current_play.orientation)
+                    .map_or(false, |coordinates| self.tile_at(&coordinates).is_some());
             let append_would_long_skewer = append_would_skewer
-                && match last_tile_coordinates.add(3, current_play.orientation) {
-                    None => false,
-                    Some(coordinates) => self.tile_at(&coordinates).is_some(),
-                };
+                && last_tile_coordinates
+                    .add(3, current_play.orientation)
+                    .map_or(false, |coordinates| self.tile_at(&coordinates).is_some());
 
             let allow_prepend = !prepend_out_of_bounds
                 && (allow_skewer || !prepend_would_skewer)
@@ -488,6 +483,10 @@ impl Board {
 
             if current_play.len() > 0 && wordlist.contains(&current_play.word) {
                 plays.insert(current_play.clone());
+            }
+
+            if !allow_prepend && !allow_append {
+                continue;
             }
 
             let current_hand =
@@ -611,12 +610,11 @@ impl Board {
         )
     }
 
-    pub fn find_hook_plays(&self, play: &Play, wordlist: &HashSet<String>) -> HashSet<Play> {
+    fn find_hook_plays(&self, play: &Play, wordlist: &HashSet<String>) -> HashSet<Play> {
         assert!(play.len() == 1);
 
-        let orientation = !play.orientation;
-
         let tile = play.tiles.first().expect("word tiles should not be empty");
+        let orientation = !play.orientation;
 
         let tile_before = self.tile_before(&tile.coordinates, orientation).is_some();
         let tile_after = self.tile_after(&tile.coordinates, orientation).is_some();
@@ -649,7 +647,6 @@ impl Board {
         wordlist: &HashSet<String>,
     ) -> HashSet<Play> {
         let mut plays = HashSet::new();
-
         let orientation = !board_word.orientation;
 
         for tile in &board_word.tiles {
@@ -678,13 +675,11 @@ impl Board {
         plays
     }
 
-    pub fn find_parallel_plays(&self, play: &Play, wordlist: &HashSet<String>) -> HashSet<Play> {
-        // FIXME this function is the exact same as the find hook one ... lol
+    fn find_parallel_plays(&self, play: &Play, wordlist: &HashSet<String>) -> HashSet<Play> {
         assert!(play.len() == 1);
 
-        let orientation = !play.orientation;
-
         let tile = play.tiles.first().expect("word tiles should not be empty");
+        let orientation = !play.orientation;
 
         let tile_before = self.tile_before(&tile.coordinates, orientation).is_some();
         let tile_after = self.tile_after(&tile.coordinates, orientation).is_some();
@@ -716,7 +711,6 @@ impl Board {
         hand: &Vec<char>,
     ) -> HashSet<Play> {
         let mut plays: HashSet<Play> = HashSet::new();
-
         let current_board_words = self.board_words();
 
         for current_board_word in current_board_words.iter() {
