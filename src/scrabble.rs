@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashSet},
     hash::Hash,
     ops::Not,
 };
@@ -110,6 +110,15 @@ pub struct TileIterator<'a> {
     coordinates: Coordinates,
 }
 
+impl<'a> TileIterator<'a> {
+    pub fn new(board: &'a Board) -> Self {
+        Self {
+            board,
+            coordinates: Coordinates::new(0, 0),
+        }
+    }
+}
+
 impl<'a> Iterator for TileIterator<'a> {
     type Item = &'a Tile;
 
@@ -146,15 +155,10 @@ impl BoardWord {
     }
 }
 
+#[derive(Debug)]
 pub struct HandLetter {
     letter: char,
     wildcard: bool,
-}
-
-impl HandLetter {
-    pub fn is_wildcard(&self) -> bool {
-        self.wildcard
-    }
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -163,6 +167,12 @@ pub struct Hand {
 }
 
 impl Hand {
+    pub fn new() -> Self {
+        Self {
+            letters: BTreeMap::new(),
+        }
+    }
+
     pub fn add(&mut self, letter: char) {
         if let Some(entry_value) = self.letters.get_mut(&letter) {
             *entry_value += 1
@@ -184,11 +194,7 @@ impl Hand {
     }
 
     pub fn remove_handletter(&mut self, letter: &HandLetter) {
-        let letter_char = if letter.is_wildcard() {
-            '*'
-        } else {
-            letter.letter
-        };
+        let letter_char = if letter.wildcard { '*' } else { letter.letter };
 
         self.remove(&letter_char)
     }
@@ -322,7 +328,6 @@ pub enum SpecialTile {
 
 fn score_letter(letter: char) -> u32 {
     match letter {
-        '*' => 0,
         'A' | 'E' | 'I' | 'L' | 'N' | 'O' | 'R' | 'S' | 'T' | 'U' => 1,
         'D' | 'G' => 2,
         'B' | 'C' | 'M' | 'P' => 3,
@@ -446,10 +451,7 @@ impl Board {
     }
 
     pub fn tiles(&self) -> TileIterator<'_> {
-        TileIterator {
-            board: self,
-            coordinates: Coordinates { i: 0, j: 0 },
-        }
+        TileIterator::new(self)
     }
 
     fn board_words(&self) -> Vec<BoardWord> {
@@ -480,22 +482,28 @@ impl Board {
     }
 
     pub fn score_play(&self, play: &Play) -> u32 {
-        self.score_play_with_crosswords_check(play, true)
-    }
-
-    fn score_play_with_crosswords_check(&self, play: &Play, check_for_crosswords: bool) -> u32 {
         let Some(first_tile) = play.tiles.first() else {
             return 0;
         };
 
+        self.score_play_with_crosswords_check(play, first_tile.coordinates, play.orientation, true)
+    }
+
+    fn score_play_with_crosswords_check(
+        &self,
+        play: &Play,
+        mut coordinates: Coordinates,
+        orientation: Orientation,
+        check_for_crosswords: bool,
+    ) -> u32 {
         let mut score = 0;
         let mut main_word_score = 0;
         let mut main_word_multiplier = 1;
-        let mut coordinates = first_tile.coordinates;
 
-        while let Some(new_coordinates) = coordinates
-            .sub(1, play.orientation)
-            .filter(|new_coordinates| self.tile_at(&new_coordinates).is_some())
+        while let Some(new_coordinates) =
+            coordinates.sub(1, orientation).filter(|new_coordinates| {
+                self.tile_at(&new_coordinates).is_some() || play.tile_at(&new_coordinates).is_some()
+            })
         {
             coordinates = new_coordinates;
         }
@@ -504,14 +512,16 @@ impl Board {
             let board_tile = self.tile_at(&coordinates);
             let play_tile = play.tile_at(&coordinates);
 
-            assert!(!board_tile.is_some() || !play_tile.is_some());
+            assert!(board_tile.is_none() || play_tile.is_none());
 
             if board_tile.is_none() && play_tile.is_none() {
                 break;
             }
 
             if let Some(tile) = board_tile {
-                main_word_score += score_letter(tile.letter);
+                if !tile.wildcard {
+                    main_word_score += score_letter(tile.letter);
+                }
             }
 
             if let Some(tile) = play_tile {
@@ -525,17 +535,20 @@ impl Board {
                     SpecialTile::TripleWord => main_word_multiplier = 3,
                 }
 
-                main_word_score += letter_multiplier * score_letter(tile.letter);
+                if !tile.wildcard {
+                    main_word_score += letter_multiplier * score_letter(tile.letter);
+                }
             }
 
             if check_for_crosswords
-                && (self.tile_before(&coordinates, !play.orientation).is_some()
-                    || self.tile_after(&coordinates, !play.orientation).is_some())
+                && (self.tile_before(&coordinates, !orientation).is_some()
+                    || self.tile_after(&coordinates, !orientation).is_some())
             {
-                score += self.score_play_with_crosswords_check(play, false);
+                score +=
+                    self.score_play_with_crosswords_check(play, coordinates, !orientation, false);
             }
 
-            match coordinates.add(1, play.orientation) {
+            match coordinates.add(1, orientation) {
                 None => break,
                 Some(new_coordinates) => coordinates = new_coordinates,
             }
@@ -550,7 +563,7 @@ impl Board {
         score
     }
 
-    pub fn validate_tile(
+    fn validate_tile(
         &self,
         tile: &Tile,
         orientation: Orientation,
@@ -643,11 +656,7 @@ impl Board {
                     if let Some(new_coordinates) =
                         first_tile_coordinates.sub(1, current_play.orientation)
                     {
-                        let new_tile = Tile {
-                            letter,
-                            coordinates: new_coordinates,
-                            wildcard,
-                        };
+                        let new_tile = Tile::new(letter, new_coordinates, wildcard);
 
                         if self.validate_tile(&new_tile, !current_play.orientation, wordlist) {
                             let mut new_play = Play {
@@ -678,11 +687,7 @@ impl Board {
                     if let Some(new_coordinates) =
                         last_tile_coordinates.add(1, current_play.orientation)
                     {
-                        let new_tile = Tile {
-                            letter,
-                            coordinates: new_coordinates,
-                            wildcard,
-                        };
+                        let new_tile = Tile::new(letter, new_coordinates, wildcard);
 
                         if self.validate_tile(&new_tile, !current_play.orientation, wordlist) {
                             let mut new_play = Play {
