@@ -71,6 +71,39 @@ impl Coordinates {
     }
 }
 
+pub struct CoordinatesIterator {
+    coordinates: Coordinates,
+}
+
+impl CoordinatesIterator {
+    pub fn new() -> Self {
+        Self {
+            coordinates: Coordinates::new(0, 0),
+        }
+    }
+}
+
+impl Iterator for CoordinatesIterator {
+    type Item = Coordinates;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.coordinates.i < Board::BOARD_SIZE {
+            let coordinates = self.coordinates;
+
+            if self.coordinates.j < Board::BOARD_SIZE - 1 {
+                self.coordinates.j += 1;
+            } else {
+                self.coordinates.j = 0;
+                self.coordinates.i += 1;
+            }
+
+            return Some(coordinates);
+        }
+
+        None
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Orientation {
     Horizontal,
@@ -78,7 +111,7 @@ pub enum Orientation {
 }
 
 impl Not for Orientation {
-    type Output = Orientation;
+    type Output = Self;
 
     fn not(self) -> Self::Output {
         match self {
@@ -107,14 +140,14 @@ impl Tile {
 
 pub struct TileIterator<'a> {
     board: &'a Board,
-    coordinates: Coordinates,
+    coordinates: CoordinatesIterator,
 }
 
 impl<'a> TileIterator<'a> {
     pub fn new(board: &'a Board) -> Self {
         Self {
             board,
-            coordinates: Coordinates::new(0, 0),
+            coordinates: CoordinatesIterator::new(),
         }
     }
 }
@@ -123,17 +156,8 @@ impl<'a> Iterator for TileIterator<'a> {
     type Item = &'a Tile;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.coordinates.i < Board::BOARD_SIZE {
-            let current_tile = self.board.tiles[self.coordinates.i][self.coordinates.j].as_ref();
-
-            if self.coordinates.j < Board::BOARD_SIZE - 1 {
-                self.coordinates.j += 1;
-            } else {
-                self.coordinates.j = 0;
-                self.coordinates.i += 1;
-            }
-
-            if let Some(tile) = current_tile {
+        while let Some(coordinates) = self.coordinates.next() {
+            if let Some(tile) = self.board.tile_at(&coordinates) {
                 return Some(tile);
             }
         }
@@ -165,6 +189,21 @@ pub struct HandLetter {
 pub struct Hand {
     letters: BTreeMap<char, u32>,
 }
+
+#[derive(Debug)]
+pub enum HandError {
+    InvalidLetter(char),
+}
+
+impl std::fmt::Display for HandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidLetter(c) => write!(f, "invalid letter {}", c),
+        }
+    }
+}
+
+impl std::error::Error for HandError {}
 
 impl Hand {
     pub fn new() -> Self {
@@ -204,11 +243,26 @@ impl Hand {
     }
 }
 
+impl TryFrom<String> for Hand {
+    type Error = HandError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let mut hand = Hand::new();
+
+        for c in value.to_uppercase().chars() {
+            match c {
+                'A'..='Z' | '*' => hand.add(c),
+                _ => return Err(HandError::InvalidLetter(c)),
+            }
+        }
+
+        Ok(hand)
+    }
+}
+
 impl<const N: usize> From<[char; N]> for Hand {
     fn from(value: [char; N]) -> Self {
-        let mut hand = Hand {
-            letters: BTreeMap::new(),
-        };
+        let mut hand = Hand::new();
 
         for c in value {
             hand.add(c);

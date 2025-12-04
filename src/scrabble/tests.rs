@@ -155,10 +155,7 @@ fn tile_iterator() {
         board.insert_tile(tile);
     }
 
-    let mut tile_iter = TileIterator {
-        board: &board,
-        coordinates: Coordinates::new(0, 0),
-    };
+    let mut tile_iter = TileIterator::new(&board);
 
     for tile in tiles {
         assert_eq!(tile_iter.next(), Some(tile).as_ref());
