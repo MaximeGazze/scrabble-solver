@@ -119,5 +119,16 @@ fn main() {
 
     let hand = Hand::try_from(args.hand).unwrap_or_else(|error| panic!("hand: {}", error));
 
-    board.find_possible_plays(&wordlist, hand);
+    let plays = board.find_possible_plays(&wordlist, hand);
+
+    let mut scores = plays
+        .iter()
+        .map(|play| (board.score_play(play), play.word.clone()))
+        .collect::<Vec<_>>();
+
+    scores.sort_by(|a, b| a.0.cmp(&b.0));
+
+    for (word, score) in scores {
+        println!("{} {}", word, score);
+    }
 }

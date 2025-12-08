@@ -798,7 +798,7 @@ fn find_perpendicular_plays() {
 
     let wordlist = HashSet::from([String::from("WORD"), String::from("WORM")]);
 
-    let result = board.find_perpendicular_plays(&board_word, hand, &wordlist);
+    let result = board.find_perpendicular_plays(&board_word, &hand, &wordlist);
 
     let expected = HashSet::from([Play {
         word: String::from("WORM"),

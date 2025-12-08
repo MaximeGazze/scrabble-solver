@@ -354,7 +354,7 @@ impl<'a> Iterator for HandIterator<'a> {
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Play {
-    word: String,
+    pub word: String,
     tiles: Vec<Tile>,
     hand: Hand,
     orientation: Orientation,
@@ -691,81 +691,82 @@ impl Board {
                 && (allow_skewer || !append_would_skewer)
                 && (allow_long_skewer || !append_would_long_skewer);
 
-            if current_play.len() > 0 && wordlist.contains(&current_play.word) {
-                plays.insert(current_play.clone());
-            }
+            if allow_prepend || allow_append {
+                for hand_letter in current_play.hand.iter() {
+                    let letter = hand_letter.letter;
+                    let wildcard = hand_letter.wildcard;
 
-            if !allow_prepend && !allow_append {
-                continue;
-            }
+                    if allow_prepend {
+                        if let Some(new_coordinates) =
+                            first_tile_coordinates.sub(1, current_play.orientation)
+                        {
+                            let new_tile = Tile::new(letter, new_coordinates, wildcard);
 
-            for hand_letter in current_play.hand.iter() {
-                let mut new_hand = current_play.hand.clone();
-                new_hand.remove_handletter(&hand_letter);
+                            if self.validate_tile(&new_tile, !current_play.orientation, wordlist) {
+                                let mut new_hand = current_play.hand.clone();
+                                new_hand.remove_handletter(&hand_letter);
 
-                let letter = hand_letter.letter;
-                let wildcard = hand_letter.wildcard;
+                                let mut new_play = Play {
+                                    word: format!("{}{}", letter, current_play.word),
+                                    tiles: [vec![new_tile], current_play.tiles.clone()].concat(),
+                                    hand: new_hand,
+                                    orientation: current_play.orientation,
+                                };
 
-                if allow_prepend {
-                    if let Some(new_coordinates) =
-                        first_tile_coordinates.sub(1, current_play.orientation)
-                    {
-                        let new_tile = Tile::new(letter, new_coordinates, wildcard);
+                                let mut first_tile_coordinates = new_coordinates;
+                                while let Some(tile) = self
+                                    .tile_before(&first_tile_coordinates, current_play.orientation)
+                                {
+                                    new_play.word.insert(0, tile.letter);
+                                    first_tile_coordinates = tile.coordinates;
+                                }
 
-                        if self.validate_tile(&new_tile, !current_play.orientation, wordlist) {
-                            let mut new_play = Play {
-                                word: format!("{}{}", letter, current_play.word),
-                                tiles: [vec![new_tile], current_play.tiles.clone()].concat(),
-                                hand: new_hand.clone(),
-                                orientation: current_play.orientation,
-                            };
-
-                            let mut first_tile_coordinates = new_coordinates;
-                            while let Some(tile) =
-                                self.tile_before(&first_tile_coordinates, current_play.orientation)
-                            {
-                                new_play.word.insert(0, tile.letter);
-                                first_tile_coordinates = tile.coordinates;
+                                play_stack.push((
+                                    new_play,
+                                    first_tile_coordinates,
+                                    last_tile_coordinates,
+                                ));
                             }
+                        }
+                    }
 
-                            play_stack.push((
-                                new_play,
-                                first_tile_coordinates,
-                                last_tile_coordinates,
-                            ));
+                    if allow_append {
+                        if let Some(new_coordinates) =
+                            last_tile_coordinates.add(1, current_play.orientation)
+                        {
+                            let new_tile = Tile::new(letter, new_coordinates, wildcard);
+
+                            if self.validate_tile(&new_tile, !current_play.orientation, wordlist) {
+                                let mut new_hand = current_play.hand.clone();
+                                new_hand.remove_handletter(&hand_letter);
+
+                                let mut new_play = Play {
+                                    word: format!("{}{}", current_play.word, letter),
+                                    tiles: [current_play.tiles.clone(), vec![new_tile]].concat(),
+                                    hand: new_hand,
+                                    orientation: current_play.orientation,
+                                };
+
+                                let mut last_tile_coordinates = new_coordinates;
+                                while let Some(tile) = self
+                                    .tile_after(&last_tile_coordinates, current_play.orientation)
+                                {
+                                    new_play.word.push(tile.letter);
+                                    last_tile_coordinates = tile.coordinates;
+                                }
+
+                                play_stack.push((
+                                    new_play,
+                                    first_tile_coordinates,
+                                    last_tile_coordinates,
+                                ));
+                            }
                         }
                     }
                 }
 
-                if allow_append {
-                    if let Some(new_coordinates) =
-                        last_tile_coordinates.add(1, current_play.orientation)
-                    {
-                        let new_tile = Tile::new(letter, new_coordinates, wildcard);
-
-                        if self.validate_tile(&new_tile, !current_play.orientation, wordlist) {
-                            let mut new_play = Play {
-                                word: format!("{}{}", current_play.word, letter),
-                                tiles: [current_play.tiles.clone(), vec![new_tile]].concat(),
-                                hand: new_hand.clone(),
-                                orientation: current_play.orientation,
-                            };
-
-                            let mut last_tile_coordinates = new_coordinates;
-                            while let Some(tile) =
-                                self.tile_after(&last_tile_coordinates, current_play.orientation)
-                            {
-                                new_play.word.push(tile.letter);
-                                last_tile_coordinates = tile.coordinates;
-                            }
-
-                            play_stack.push((
-                                new_play,
-                                first_tile_coordinates,
-                                last_tile_coordinates,
-                            ));
-                        }
-                    }
+                if current_play.len() > 0 && wordlist.contains(&current_play.word) {
+                    plays.insert(current_play);
                 }
             }
         }
@@ -840,7 +841,7 @@ impl Board {
     fn find_perpendicular_plays(
         &self,
         board_word: &BoardWord,
-        hand: Hand,
+        hand: &Hand,
         wordlist: &HashSet<String>,
     ) -> HashSet<Play> {
         let mut plays = HashSet::new();
@@ -920,7 +921,7 @@ impl Board {
             plays.extend(hook_plays);
 
             let perpendicular_plays =
-                self.find_perpendicular_plays(current_board_word, hand.clone(), wordlist);
+                self.find_perpendicular_plays(current_board_word, &hand, wordlist);
 
             plays.extend(perpendicular_plays.clone());
 
