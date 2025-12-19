@@ -319,6 +319,66 @@ fn validate_tile_word_before_and_after_invalid() {
 }
 
 #[test]
+fn find_starting_plays() {
+    let board = Board::new();
+
+    let hand = Hand::from(['W', 'R', 'O', 'D', 'M', 'L', 'L']);
+
+    let wordlist = HashSet::from([String::from("WORD")]);
+
+    let expected = HashSet::from([
+        Play {
+            word: String::from("WORD"),
+            tiles: vec![
+                Tile::new('W', Coordinates::new(7, 4), false),
+                Tile::new('O', Coordinates::new(7, 5), false),
+                Tile::new('R', Coordinates::new(7, 6), false),
+                Tile::new('D', Coordinates::new(7, 7), false),
+            ],
+            hand: Hand::from(['M', 'L', 'L']),
+            orientation: Orientation::Horizontal,
+        },
+        Play {
+            word: String::from("WORD"),
+            tiles: vec![
+                Tile::new('W', Coordinates::new(7, 5), false),
+                Tile::new('O', Coordinates::new(7, 6), false),
+                Tile::new('R', Coordinates::new(7, 7), false),
+                Tile::new('D', Coordinates::new(7, 8), false),
+            ],
+            hand: Hand::from(['M', 'L', 'L']),
+            orientation: Orientation::Horizontal,
+        },
+        Play {
+            word: String::from("WORD"),
+            tiles: vec![
+                Tile::new('W', Coordinates::new(7, 6), false),
+                Tile::new('O', Coordinates::new(7, 7), false),
+                Tile::new('R', Coordinates::new(7, 8), false),
+                Tile::new('D', Coordinates::new(7, 9), false),
+            ],
+            hand: Hand::from(['M', 'L', 'L']),
+            orientation: Orientation::Horizontal,
+        },
+        Play {
+            word: String::from("WORD"),
+            tiles: vec![
+                Tile::new('W', Coordinates::new(7, 7), false),
+                Tile::new('O', Coordinates::new(7, 8), false),
+                Tile::new('R', Coordinates::new(7, 9), false),
+                Tile::new('D', Coordinates::new(7, 10), false),
+            ],
+            hand: Hand::from(['M', 'L', 'L']),
+            orientation: Orientation::Horizontal,
+        },
+    ]);
+
+    let result = board.find_starting_plays(hand, &wordlist);
+
+    assert_eq!(result, expected);
+}
+
+#[test]
 fn find_extension_plays_horizontal() {
     let mut board = Board::new();
 

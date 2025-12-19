@@ -92,7 +92,7 @@ struct Args {
 }
 
 #[derive(Debug, clap::Args)]
-#[group(required = true, multiple = false)]
+#[group(required = false, multiple = false)]
 struct BoardGroup {
     /// String describing a board
     #[arg(short = 's', long)]
@@ -111,7 +111,7 @@ fn main() {
     } else if let Some(path) = args.board.board_file {
         read_board_file(path).unwrap_or_else(|error| panic!("board: {}", error))
     } else {
-        panic!("missing board argument");
+        Board::new()
     };
 
     let wordlist =
@@ -121,14 +121,13 @@ fn main() {
 
     let plays = board.find_possible_plays(&wordlist, hand);
 
-    let mut scores = plays
+    let best_play = plays
         .iter()
-        .map(|play| (board.score_play(play), play.word.clone()))
-        .collect::<Vec<_>>();
+        .map(|play| (board.score_play(play), play))
+        .max_by(|a, b| a.0.cmp(&b.0));
 
-    scores.sort_by(|a, b| a.0.cmp(&b.0));
-
-    for (word, score) in scores {
-        println!("{} {}", word, score);
+    if let Some((score, play)) = best_play {
+        println!("{} {}", score, play.word);
+        board.print_play(&play);
     }
 }

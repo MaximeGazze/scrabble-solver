@@ -1,3 +1,4 @@
+use colored::Colorize;
 use std::{
     collections::{BTreeMap, HashSet},
     hash::Hash,
@@ -774,6 +775,38 @@ impl Board {
         plays
     }
 
+    fn find_starting_plays(&self, hand: Hand, wordlist: &HashSet<String>) -> HashSet<Play> {
+        let mut plays = HashSet::new();
+
+        let center_coordinates = Coordinates::new(7, 7);
+
+        for hand_letter in hand.iter() {
+            let letter = hand_letter.letter;
+            let wildcard = hand_letter.wildcard;
+
+            let mut hand_clone = hand.clone();
+            hand_clone.remove_handletter(&hand_letter);
+
+            let play = Play {
+                word: letter.to_string(),
+                tiles: vec![Tile::new(letter, center_coordinates, wildcard)],
+                hand: hand_clone,
+                orientation: Orientation::Horizontal,
+            };
+
+            plays.extend(self.build_possible_plays(
+                play,
+                center_coordinates,
+                center_coordinates,
+                wordlist,
+                false,
+                false,
+            ));
+        }
+
+        plays
+    }
+
     fn find_extension_plays(
         &self,
         board_word: &BoardWord,
@@ -907,33 +940,57 @@ impl Board {
         let mut plays: HashSet<Play> = HashSet::new();
         let current_board_words = self.board_words();
 
-        for current_board_word in current_board_words.iter() {
-            let extension_plays =
-                self.find_extension_plays(current_board_word, hand.clone(), wordlist);
+        if current_board_words.is_empty() {
+            self.find_starting_plays(hand, wordlist)
+        } else {
+            for current_board_word in current_board_words.iter() {
+                let extension_plays =
+                    self.find_extension_plays(current_board_word, hand.clone(), wordlist);
 
-            plays.extend(extension_plays.clone());
+                plays.extend(extension_plays.clone());
 
-            let hook_plays = extension_plays
-                .iter()
-                .filter(|play| play.len() == 1)
-                .flat_map(|play| self.find_hook_plays(play, wordlist));
+                let hook_plays = extension_plays
+                    .iter()
+                    .filter(|play| play.len() == 1)
+                    .flat_map(|play| self.find_hook_plays(play, wordlist));
 
-            plays.extend(hook_plays);
+                plays.extend(hook_plays);
 
-            let perpendicular_plays =
-                self.find_perpendicular_plays(current_board_word, &hand, wordlist);
+                let perpendicular_plays =
+                    self.find_perpendicular_plays(current_board_word, &hand, wordlist);
 
-            plays.extend(perpendicular_plays.clone());
+                plays.extend(perpendicular_plays.clone());
 
-            let parallel_plays = perpendicular_plays
-                .iter()
-                .filter(|play| play.len() == 1)
-                .flat_map(|play| self.find_parallel_plays(play, wordlist));
+                let parallel_plays = perpendicular_plays
+                    .iter()
+                    .filter(|play| play.len() == 1)
+                    .flat_map(|play| self.find_parallel_plays(play, wordlist));
 
-            plays.extend(parallel_plays);
+                plays.extend(parallel_plays);
+            }
+
+            plays
         }
+    }
 
-        plays
+    pub fn print_play(&self, play: &Play) {
+        for coordinates in CoordinatesIterator::new() {
+            if let Some(tile) = self.tile_at(&coordinates) {
+                print!("{}", tile.letter);
+            } else if let Some(tile) = play.tile_at(&coordinates) {
+                print!("{}", tile.letter.to_string().red());
+            } else {
+                print!("_");
+            }
+
+            if coordinates.j < Self::BOARD_SIZE - 1 {
+                print!(" ");
+            }
+
+            if coordinates.j == Self::BOARD_SIZE - 1 {
+                print!("\n");
+            }
+        }
     }
 }
 
@@ -941,7 +998,7 @@ impl std::fmt::Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for i in 0..Self::BOARD_SIZE {
             for j in 0..Self::BOARD_SIZE {
-                match &self.tiles[i][j] {
+                match self.tiles[i][j] {
                     None => write!(f, "_")?,
                     Some(tile) => write!(f, "{}", tile.letter)?,
                 };
