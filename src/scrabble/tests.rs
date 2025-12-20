@@ -26,39 +26,37 @@ fn coordinates_add_top_left_vertical() {
 
 #[test]
 fn coordinates_add_top_right_horizontal() {
-    let result = Coordinates::new(0, Board::BOARD_SIZE - 1).add(1, Orientation::Horizontal);
+    let result = Coordinates::new(0, BOARD_SIZE - 1).add(1, Orientation::Horizontal);
     assert_eq!(result, None);
 }
 
 #[test]
 fn coordinates_add_top_right_vertical() {
-    let result = Coordinates::new(0, Board::BOARD_SIZE - 1).add(1, Orientation::Vertical);
-    assert_eq!(result, Some(Coordinates::new(1, Board::BOARD_SIZE - 1)));
+    let result = Coordinates::new(0, BOARD_SIZE - 1).add(1, Orientation::Vertical);
+    assert_eq!(result, Some(Coordinates::new(1, BOARD_SIZE - 1)));
 }
 
 #[test]
 fn coordinates_add_bottom_left_horizontal() {
-    let result = Coordinates::new(Board::BOARD_SIZE - 1, 0).add(1, Orientation::Horizontal);
-    assert_eq!(result, Some(Coordinates::new(Board::BOARD_SIZE - 1, 1)));
+    let result = Coordinates::new(BOARD_SIZE - 1, 0).add(1, Orientation::Horizontal);
+    assert_eq!(result, Some(Coordinates::new(BOARD_SIZE - 1, 1)));
 }
 
 #[test]
 fn coordinates_add_bottom_left_vertical() {
-    let result = Coordinates::new(Board::BOARD_SIZE - 1, 0).add(1, Orientation::Vertical);
+    let result = Coordinates::new(BOARD_SIZE - 1, 0).add(1, Orientation::Vertical);
     assert_eq!(result, None);
 }
 
 #[test]
 fn coordinates_add_bottom_right_horizontal() {
-    let result = Coordinates::new(Board::BOARD_SIZE - 1, Board::BOARD_SIZE - 1)
-        .add(1, Orientation::Horizontal);
+    let result = Coordinates::new(BOARD_SIZE - 1, BOARD_SIZE - 1).add(1, Orientation::Horizontal);
     assert_eq!(result, None);
 }
 
 #[test]
 fn coordinates_add_bottom_right_vertical() {
-    let result = Coordinates::new(Board::BOARD_SIZE - 1, Board::BOARD_SIZE - 1)
-        .add(1, Orientation::Vertical);
+    let result = Coordinates::new(BOARD_SIZE - 1, BOARD_SIZE - 1).add(1, Orientation::Vertical);
     assert_eq!(result, None);
 }
 
@@ -88,51 +86,43 @@ fn coordinates_sub_top_left_vertical() {
 
 #[test]
 fn coordinates_sub_top_right_horizontal() {
-    let result = Coordinates::new(0, Board::BOARD_SIZE - 1).sub(1, Orientation::Horizontal);
-    assert_eq!(result, Some(Coordinates::new(0, Board::BOARD_SIZE - 2)));
+    let result = Coordinates::new(0, BOARD_SIZE - 1).sub(1, Orientation::Horizontal);
+    assert_eq!(result, Some(Coordinates::new(0, BOARD_SIZE - 2)));
 }
 
 #[test]
 fn coordinates_sub_top_right_vertical() {
-    let result = Coordinates::new(0, Board::BOARD_SIZE - 1).sub(1, Orientation::Vertical);
+    let result = Coordinates::new(0, BOARD_SIZE - 1).sub(1, Orientation::Vertical);
     assert_eq!(result, None);
 }
 
 #[test]
 fn coordinates_sub_bottom_left_horizontal() {
-    let result = Coordinates::new(Board::BOARD_SIZE - 1, 0).sub(1, Orientation::Horizontal);
+    let result = Coordinates::new(BOARD_SIZE - 1, 0).sub(1, Orientation::Horizontal);
     assert_eq!(result, None);
 }
 
 #[test]
 fn coordinates_sub_bottom_left_vertical() {
-    let result = Coordinates::new(Board::BOARD_SIZE - 1, 0).sub(1, Orientation::Vertical);
-    assert_eq!(result, Some(Coordinates::new(Board::BOARD_SIZE - 2, 0)));
+    let result = Coordinates::new(BOARD_SIZE - 1, 0).sub(1, Orientation::Vertical);
+    assert_eq!(result, Some(Coordinates::new(BOARD_SIZE - 2, 0)));
 }
 
 #[test]
 fn coordinates_sub_bottom_right_horizontal() {
-    let result = Coordinates::new(Board::BOARD_SIZE - 1, Board::BOARD_SIZE - 1)
-        .sub(1, Orientation::Horizontal);
+    let result = Coordinates::new(BOARD_SIZE - 1, BOARD_SIZE - 1).sub(1, Orientation::Horizontal);
     assert_eq!(
         result,
-        Some(Coordinates::new(
-            Board::BOARD_SIZE - 1,
-            Board::BOARD_SIZE - 2
-        )),
+        Some(Coordinates::new(BOARD_SIZE - 1, BOARD_SIZE - 2)),
     );
 }
 
 #[test]
 fn coordinates_sub_bottom_right_vertical() {
-    let result = Coordinates::new(Board::BOARD_SIZE - 1, Board::BOARD_SIZE - 1)
-        .sub(1, Orientation::Vertical);
+    let result = Coordinates::new(BOARD_SIZE - 1, BOARD_SIZE - 1).sub(1, Orientation::Vertical);
     assert_eq!(
         result,
-        Some(Coordinates::new(
-            Board::BOARD_SIZE - 2,
-            Board::BOARD_SIZE - 1
-        )),
+        Some(Coordinates::new(BOARD_SIZE - 2, BOARD_SIZE - 1)),
     );
 }
 

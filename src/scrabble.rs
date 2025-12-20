@@ -8,6 +8,30 @@ use std::{
 #[cfg(test)]
 mod tests;
 
+const BOARD_SIZE: usize = 15;
+
+#[rustfmt::skip]
+const SPECIAL_TILE_BOARD: [[SpecialTile; BOARD_SIZE]; BOARD_SIZE] = {
+    use SpecialTile::*;
+    [
+        [TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, TripleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord],
+        [Empty, DoubleWord, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, DoubleWord, Empty],
+        [Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty],
+        [DoubleLetter, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, DoubleLetter],
+        [Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty],
+        [Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty],
+        [Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, Empty],
+        [TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord],
+        [Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, Empty],
+        [Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty],
+        [Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty],
+        [DoubleLetter, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, DoubleLetter],
+        [Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty],
+        [Empty, DoubleWord, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, DoubleWord, Empty],
+        [TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, TripleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord],
+    ]
+};
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Coordinates {
     i: usize,
@@ -15,8 +39,8 @@ pub struct Coordinates {
 }
 
 impl Coordinates {
-    pub fn new(i: usize, j: usize) -> Self {
-        assert!(i < Board::BOARD_SIZE && j < Board::BOARD_SIZE);
+    pub const fn new(i: usize, j: usize) -> Self {
+        assert!(i < BOARD_SIZE && j < BOARD_SIZE);
 
         Self { i, j }
     }
@@ -24,7 +48,7 @@ impl Coordinates {
     pub fn add(&self, value: usize, orientation: Orientation) -> Option<Self> {
         match orientation {
             Orientation::Vertical => {
-                if self.i + value >= Board::BOARD_SIZE {
+                if self.i + value >= BOARD_SIZE {
                     return None;
                 }
 
@@ -34,7 +58,7 @@ impl Coordinates {
                 })
             }
             Orientation::Horizontal => {
-                if self.j + value >= Board::BOARD_SIZE {
+                if self.j + value >= BOARD_SIZE {
                     return None;
                 }
 
@@ -50,23 +74,65 @@ impl Coordinates {
         match orientation {
             Orientation::Vertical => {
                 if value > self.i {
-                    return None;
+                    None
+                } else {
+                    Some(Self {
+                        i: self.i - value,
+                        j: self.j,
+                    })
                 }
-
-                Some(Self {
-                    i: self.i - value,
-                    j: self.j,
-                })
             }
             Orientation::Horizontal => {
                 if value > self.j {
-                    return None;
+                    None
+                } else {
+                    Some(Self {
+                        i: self.i,
+                        j: self.j - value,
+                    })
                 }
+            }
+        }
+    }
 
-                Some(Self {
-                    i: self.i,
-                    j: self.j - value,
-                })
+    pub fn add_mut(&mut self, value: usize, orientation: Orientation) -> bool {
+        match orientation {
+            Orientation::Vertical => {
+                if self.i + value >= BOARD_SIZE {
+                    false
+                } else {
+                    self.i += value;
+                    true
+                }
+            }
+            Orientation::Horizontal => {
+                if self.j + value >= BOARD_SIZE {
+                    false
+                } else {
+                    self.j += value;
+                    true
+                }
+            }
+        }
+    }
+
+    pub fn sub_mut(&mut self, value: usize, orientation: Orientation) -> bool {
+        match orientation {
+            Orientation::Vertical => {
+                if value > self.i {
+                    false
+                } else {
+                    self.i -= value;
+                    true
+                }
+            }
+            Orientation::Horizontal => {
+                if value > self.j {
+                    false
+                } else {
+                    self.j -= value;
+                    true
+                }
             }
         }
     }
@@ -77,7 +143,7 @@ pub struct CoordinatesIterator {
 }
 
 impl CoordinatesIterator {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             coordinates: Coordinates::new(0, 0),
         }
@@ -88,10 +154,10 @@ impl Iterator for CoordinatesIterator {
     type Item = Coordinates;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.coordinates.i < Board::BOARD_SIZE {
+        while self.coordinates.i < BOARD_SIZE {
             let coordinates = self.coordinates;
 
-            if self.coordinates.j < Board::BOARD_SIZE - 1 {
+            if self.coordinates.j < BOARD_SIZE - 1 {
                 self.coordinates.j += 1;
             } else {
                 self.coordinates.j = 0;
@@ -130,7 +196,7 @@ pub struct Tile {
 }
 
 impl Tile {
-    pub fn new(letter: char, coordinates: Coordinates, wildcard: bool) -> Self {
+    pub const fn new(letter: char, coordinates: Coordinates, wildcard: bool) -> Self {
         Self {
             letter,
             coordinates,
@@ -145,7 +211,7 @@ pub struct TileIterator<'a> {
 }
 
 impl<'a> TileIterator<'a> {
-    pub fn new(board: &'a Board) -> Self {
+    pub const fn new(board: &'a Board) -> Self {
         Self {
             board,
             coordinates: CoordinatesIterator::new(),
@@ -158,7 +224,7 @@ impl<'a> Iterator for TileIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(coordinates) = self.coordinates.next() {
-            if let Some(tile) = self.board.tile_at(&coordinates) {
+            if let Some(tile) = self.board.tile_at(coordinates) {
                 return Some(tile);
             }
         }
@@ -207,13 +273,13 @@ impl std::fmt::Display for HandError {
 impl std::error::Error for HandError {}
 
 impl Hand {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             letters: BTreeMap::new(),
         }
     }
 
-    pub fn add(&mut self, letter: char) {
+    pub fn insert(&mut self, letter: char) {
         if let Some(entry_value) = self.letters.get_mut(&letter) {
             *entry_value += 1
         } else {
@@ -252,7 +318,7 @@ impl TryFrom<String> for Hand {
 
         for c in value.to_uppercase().chars() {
             match c {
-                'A'..='Z' | '*' => hand.add(c),
+                'A'..='Z' | '*' => hand.insert(c),
                 _ => return Err(HandError::InvalidLetter(c)),
             }
         }
@@ -266,7 +332,7 @@ impl<const N: usize> From<[char; N]> for Hand {
         let mut hand = Hand::new();
 
         for c in value {
-            hand.add(c);
+            hand.insert(c);
         }
 
         hand
@@ -366,10 +432,10 @@ impl Play {
         self.tiles.len()
     }
 
-    pub fn tile_at(&self, coordinates: &Coordinates) -> Option<&Tile> {
+    pub fn tile_at(&self, coordinates: Coordinates) -> Option<&Tile> {
         self.tiles
             .iter()
-            .find(|tile| tile.coordinates == *coordinates)
+            .find(|tile| tile.coordinates == coordinates)
     }
 }
 
@@ -399,33 +465,9 @@ pub struct Board {
 }
 
 impl Board {
-    const BOARD_SIZE: usize = 15;
-
-    #[rustfmt::skip]
-    const SPECIAL_TILE_BOARD: [[SpecialTile; Self::BOARD_SIZE]; Self::BOARD_SIZE] = {
-        use SpecialTile::*;
-        [
-            [TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, TripleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord],
-            [Empty, DoubleWord, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, DoubleWord, Empty],
-            [Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty],
-            [DoubleLetter, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, DoubleLetter],
-            [Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty],
-            [Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty],
-            [Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, Empty],
-            [TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord],
-            [Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleLetter, Empty, Empty],
-            [Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty],
-            [Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty, Empty, DoubleWord, Empty, Empty, Empty, Empty],
-            [DoubleLetter, Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty, DoubleLetter],
-            [Empty, Empty, DoubleWord, Empty, Empty, Empty, DoubleLetter, Empty, DoubleLetter, Empty, Empty, Empty, DoubleWord, Empty, Empty],
-            [Empty, DoubleWord, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, TripleLetter, Empty, Empty, Empty, DoubleWord, Empty],
-            [TripleWord, Empty, Empty, DoubleLetter, Empty, Empty, Empty, TripleWord, Empty, Empty, Empty, DoubleLetter, Empty, Empty, TripleWord],
-        ]
-    };
-
     pub fn new() -> Self {
         Self {
-            tiles: vec![vec![None; Self::BOARD_SIZE]; Self::BOARD_SIZE],
+            tiles: vec![vec![None; BOARD_SIZE]; BOARD_SIZE],
         }
     }
 
@@ -436,32 +478,32 @@ impl Board {
         self.tiles[i][j] = Some(tile);
     }
 
-    pub fn tile_at(&self, coordinates: &Coordinates) -> Option<&Tile> {
+    pub fn tile_at(&self, coordinates: Coordinates) -> Option<&Tile> {
         self.tiles.get(coordinates.i)?.get(coordinates.j)?.as_ref()
     }
 
-    fn tile_above(&self, coordinates: &Coordinates) -> Option<&Tile> {
-        self.tile_at(&coordinates.sub(1, Orientation::Vertical)?)
+    fn tile_above(&self, coordinates: Coordinates) -> Option<&Tile> {
+        self.tile_at(coordinates.sub(1, Orientation::Vertical)?)
     }
 
-    fn tile_below(&self, coordinates: &Coordinates) -> Option<&Tile> {
-        self.tile_at(&coordinates.add(1, Orientation::Vertical)?)
+    fn tile_below(&self, coordinates: Coordinates) -> Option<&Tile> {
+        self.tile_at(coordinates.add(1, Orientation::Vertical)?)
     }
 
-    fn tile_left(&self, coordinates: &Coordinates) -> Option<&Tile> {
-        self.tile_at(&coordinates.sub(1, Orientation::Horizontal)?)
+    fn tile_left(&self, coordinates: Coordinates) -> Option<&Tile> {
+        self.tile_at(coordinates.sub(1, Orientation::Horizontal)?)
     }
 
-    fn tile_right(&self, coordinates: &Coordinates) -> Option<&Tile> {
-        self.tile_at(&coordinates.add(1, Orientation::Horizontal)?)
+    fn tile_right(&self, coordinates: Coordinates) -> Option<&Tile> {
+        self.tile_at(coordinates.add(1, Orientation::Horizontal)?)
     }
 
-    fn tile_before(&self, coordinates: &Coordinates, orientation: Orientation) -> Option<&Tile> {
-        self.tile_at(&coordinates.sub(1, orientation)?)
+    fn tile_before(&self, coordinates: Coordinates, orientation: Orientation) -> Option<&Tile> {
+        self.tile_at(coordinates.sub(1, orientation)?)
     }
 
-    fn tile_after(&self, coordinates: &Coordinates, orientation: Orientation) -> Option<&Tile> {
-        self.tile_at(&coordinates.add(1, orientation)?)
+    fn tile_after(&self, coordinates: Coordinates, orientation: Orientation) -> Option<&Tile> {
+        self.tile_at(coordinates.add(1, orientation)?)
     }
 
     fn board_word_at(
@@ -477,18 +519,18 @@ impl Board {
 
         match orientation {
             Orientation::Vertical => {
-                while self.tile_above(&coordinates).is_some() {
+                while self.tile_above(coordinates).is_some() {
                     coordinates.i -= 1;
                 }
             }
             Orientation::Horizontal => {
-                while self.tile_left(&coordinates).is_some() {
+                while self.tile_left(coordinates).is_some() {
                     coordinates.j -= 1;
                 }
             }
         }
 
-        while let Some(current_tile) = self.tile_at(&coordinates) {
+        while let Some(current_tile) = self.tile_at(coordinates) {
             board_word.word.push(current_tile.letter);
             board_word.tiles.push(*current_tile);
 
@@ -513,10 +555,10 @@ impl Board {
         let mut board_words = Vec::new();
 
         for tile in self.tiles() {
-            let top_has_tile = self.tile_above(&tile.coordinates).is_some();
-            let bottom_has_tile = self.tile_below(&tile.coordinates).is_some();
-            let left_has_tile = self.tile_left(&tile.coordinates).is_some();
-            let right_has_tile = self.tile_right(&tile.coordinates).is_some();
+            let top_has_tile = self.tile_above(tile.coordinates).is_some();
+            let bottom_has_tile = self.tile_below(tile.coordinates).is_some();
+            let left_has_tile = self.tile_left(tile.coordinates).is_some();
+            let right_has_tile = self.tile_right(tile.coordinates).is_some();
 
             if !top_has_tile && bottom_has_tile {
                 board_words.push(
@@ -557,15 +599,15 @@ impl Board {
 
         while let Some(new_coordinates) =
             coordinates.sub(1, orientation).filter(|new_coordinates| {
-                self.tile_at(&new_coordinates).is_some() || play.tile_at(&new_coordinates).is_some()
+                self.tile_at(*new_coordinates).is_some() || play.tile_at(*new_coordinates).is_some()
             })
         {
             coordinates = new_coordinates;
         }
 
         loop {
-            let board_tile = self.tile_at(&coordinates);
-            let play_tile = play.tile_at(&coordinates);
+            let board_tile = self.tile_at(coordinates);
+            let play_tile = play.tile_at(coordinates);
 
             assert!(board_tile.is_none() || play_tile.is_none());
 
@@ -582,7 +624,7 @@ impl Board {
             if let Some(tile) = play_tile {
                 let mut letter_multiplier = 1;
 
-                match Self::SPECIAL_TILE_BOARD[coordinates.i][coordinates.j] {
+                match SPECIAL_TILE_BOARD[coordinates.i][coordinates.j] {
                     SpecialTile::Empty => {}
                     SpecialTile::DoubleLetter => letter_multiplier = 2,
                     SpecialTile::TripleLetter => letter_multiplier = 3,
@@ -596,8 +638,8 @@ impl Board {
             }
 
             if check_for_crosswords
-                && (self.tile_before(&coordinates, !orientation).is_some()
-                    || self.tile_after(&coordinates, !orientation).is_some())
+                && (self.tile_before(coordinates, !orientation).is_some()
+                    || self.tile_after(coordinates, !orientation).is_some())
             {
                 score +=
                     self.score_play_with_crosswords_check(play, coordinates, !orientation, false);
@@ -626,7 +668,7 @@ impl Board {
     ) -> bool {
         let mut new_word = String::new();
 
-        if let Some(tile_before) = self.tile_before(&tile.coordinates, orientation) {
+        if let Some(tile_before) = self.tile_before(tile.coordinates, orientation) {
             match self.board_word_at(tile_before.coordinates, orientation) {
                 None => new_word.push(tile_before.letter),
                 Some(board_word) => new_word.push_str(&board_word.word),
@@ -635,7 +677,7 @@ impl Board {
 
         new_word.push(tile.letter);
 
-        if let Some(tile_after) = self.tile_after(&tile.coordinates, orientation) {
+        if let Some(tile_after) = self.tile_after(tile.coordinates, orientation) {
             match self.board_word_at(tile_after.coordinates, orientation) {
                 None => new_word.push(tile_after.letter),
                 Some(board_word) => new_word.push_str(&board_word.word),
@@ -671,19 +713,19 @@ impl Board {
 
             let prepend_would_skewer = first_tile_coordinates
                 .sub(2, current_play.orientation)
-                .map_or(false, |coordinates| self.tile_at(&coordinates).is_some());
+                .map_or(false, |coordinates| self.tile_at(coordinates).is_some());
             let append_would_skewer = last_tile_coordinates
                 .add(2, current_play.orientation)
-                .map_or(false, |coordinates| self.tile_at(&coordinates).is_some());
+                .map_or(false, |coordinates| self.tile_at(coordinates).is_some());
 
             let prepend_would_long_skewer = prepend_would_skewer
                 && first_tile_coordinates
                     .sub(3, current_play.orientation)
-                    .map_or(false, |coordinates| self.tile_at(&coordinates).is_some());
+                    .map_or(false, |coordinates| self.tile_at(coordinates).is_some());
             let append_would_long_skewer = append_would_skewer
                 && last_tile_coordinates
                     .add(3, current_play.orientation)
-                    .map_or(false, |coordinates| self.tile_at(&coordinates).is_some());
+                    .map_or(false, |coordinates| self.tile_at(coordinates).is_some());
 
             let allow_prepend = !prepend_out_of_bounds
                 && (allow_skewer || !prepend_would_skewer)
@@ -716,7 +758,7 @@ impl Board {
 
                                 let mut first_tile_coordinates = new_coordinates;
                                 while let Some(tile) = self
-                                    .tile_before(&first_tile_coordinates, current_play.orientation)
+                                    .tile_before(first_tile_coordinates, current_play.orientation)
                                 {
                                     new_play.word.insert(0, tile.letter);
                                     first_tile_coordinates = tile.coordinates;
@@ -749,8 +791,8 @@ impl Board {
                                 };
 
                                 let mut last_tile_coordinates = new_coordinates;
-                                while let Some(tile) = self
-                                    .tile_after(&last_tile_coordinates, current_play.orientation)
+                                while let Some(tile) =
+                                    self.tile_after(last_tile_coordinates, current_play.orientation)
                                 {
                                     new_play.word.push(tile.letter);
                                     last_tile_coordinates = tile.coordinates;
@@ -847,8 +889,8 @@ impl Board {
         let tile = play.tiles.first().expect("word tiles should not be empty");
         let orientation = !play.orientation;
 
-        let tile_before = self.tile_before(&tile.coordinates, orientation).is_some();
-        let tile_after = self.tile_after(&tile.coordinates, orientation).is_some();
+        let tile_before = self.tile_before(tile.coordinates, orientation).is_some();
+        let tile_after = self.tile_after(tile.coordinates, orientation).is_some();
 
         if tile_before || tile_after {
             return HashSet::new();
@@ -881,8 +923,8 @@ impl Board {
         let orientation = !board_word.orientation;
 
         for tile in &board_word.tiles {
-            let tile_before = self.tile_before(&tile.coordinates, orientation).is_some();
-            let tile_after = self.tile_after(&tile.coordinates, orientation).is_some();
+            let tile_before = self.tile_before(tile.coordinates, orientation).is_some();
+            let tile_after = self.tile_after(tile.coordinates, orientation).is_some();
 
             if !tile_before && !tile_after {
                 let init_play = Play {
@@ -912,8 +954,8 @@ impl Board {
         let tile = play.tiles.first().expect("word tiles should not be empty");
         let orientation = !play.orientation;
 
-        let tile_before = self.tile_before(&tile.coordinates, orientation).is_some();
-        let tile_after = self.tile_after(&tile.coordinates, orientation).is_some();
+        let tile_before = self.tile_before(tile.coordinates, orientation).is_some();
+        let tile_after = self.tile_after(tile.coordinates, orientation).is_some();
 
         if tile_before || tile_after {
             return HashSet::new();
@@ -974,20 +1016,88 @@ impl Board {
     }
 
     pub fn print_play(&self, play: &Play) {
+        let first_tile_coordinates = play
+            .tiles
+            .first()
+            .expect("play tiles should not be empty")
+            .coordinates;
+        let last_tile_coordinates = play
+            .tiles
+            .last()
+            .expect("play tiles should not be empty")
+            .coordinates;
+
         for coordinates in CoordinatesIterator::new() {
-            if let Some(tile) = self.tile_at(&coordinates) {
-                print!("{}", tile.letter);
-            } else if let Some(tile) = play.tile_at(&coordinates) {
+            if let Some(tile) = play.tile_at(coordinates) {
                 print!("{}", tile.letter.to_string().red());
+            } else if let Some(tile) = self.tile_at(coordinates) {
+                let mut is_connected = false;
+                if coordinates.i >= first_tile_coordinates.i
+                    && coordinates.i <= last_tile_coordinates.i
+                {
+                    if coordinates.j < first_tile_coordinates.j {
+                        let mut current_coordinates = coordinates;
+                        while current_coordinates.add_mut(1, Orientation::Horizontal) {
+                            if play.tile_at(current_coordinates).is_some() {
+                                is_connected = true;
+                                break;
+                            } else if self.tile_at(current_coordinates).is_none() {
+                                break;
+                            }
+                        }
+                    } else {
+                        let mut current_coordinates = coordinates;
+                        while current_coordinates.sub_mut(1, !play.orientation) {
+                            if play.tile_at(current_coordinates).is_some() {
+                                is_connected = true;
+                                break;
+                            } else if self.tile_at(current_coordinates).is_none() {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if coordinates.j >= first_tile_coordinates.j
+                    && coordinates.j <= last_tile_coordinates.j
+                {
+                    if coordinates.i < first_tile_coordinates.i {
+                        let mut current_coordinates = coordinates;
+                        while current_coordinates.add_mut(1, Orientation::Vertical) {
+                            if play.tile_at(current_coordinates).is_some() {
+                                is_connected = true;
+                                break;
+                            } else if self.tile_at(current_coordinates).is_none() {
+                                break;
+                            }
+                        }
+                    } else {
+                        let mut current_coordinates = coordinates;
+                        while current_coordinates.sub_mut(1, !play.orientation) {
+                            if play.tile_at(current_coordinates).is_some() {
+                                is_connected = true;
+                                break;
+                            } else if self.tile_at(current_coordinates).is_none() {
+                                break;
+                            }
+                        }
+                    }
+                };
+
+                if is_connected {
+                    print!("{}", tile.letter.to_string().yellow());
+                } else {
+                    print!("{}", tile.letter);
+                }
             } else {
                 print!("_");
             }
 
-            if coordinates.j < Self::BOARD_SIZE - 1 {
+            if coordinates.j < BOARD_SIZE - 1 {
                 print!(" ");
             }
 
-            if coordinates.j == Self::BOARD_SIZE - 1 {
+            if coordinates.j == BOARD_SIZE - 1 {
                 print!("\n");
             }
         }
@@ -996,19 +1106,19 @@ impl Board {
 
 impl std::fmt::Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        for i in 0..Self::BOARD_SIZE {
-            for j in 0..Self::BOARD_SIZE {
+        for i in 0..BOARD_SIZE {
+            for j in 0..BOARD_SIZE {
                 match self.tiles[i][j] {
                     None => write!(f, "_")?,
                     Some(tile) => write!(f, "{}", tile.letter)?,
                 };
 
-                if j < Self::BOARD_SIZE - 1 {
+                if j < BOARD_SIZE - 1 {
                     write!(f, " ")?;
                 }
             }
 
-            if i < Self::BOARD_SIZE - 1 {
+            if i < BOARD_SIZE - 1 {
                 write!(f, "\n")?;
             }
         }
