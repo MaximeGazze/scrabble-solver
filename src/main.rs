@@ -11,7 +11,7 @@ use std::{
 
 use scrabble::{Board, CoordinatesIterator, Hand, Tile};
 
-fn read_board_string(s: String) -> Board {
+fn read_board_string(s: &str) -> Board {
     let mut board = Board::new();
 
     let uppercase = s.to_uppercase();
@@ -64,7 +64,7 @@ where
 
     let _ = file.read_to_string(&mut file_contents);
 
-    Ok(read_board_string(file_contents))
+    Ok(read_board_string(&file_contents))
 }
 
 fn read_wordlist<P>(path: P) -> Result<HashSet<String>, io::Error>
@@ -107,7 +107,7 @@ fn main() {
     let args = Args::parse();
 
     let board = if let Some(s) = args.board.board_string {
-        read_board_string(s)
+        read_board_string(&s)
     } else if let Some(path) = args.board.board_file {
         read_board_file(path).unwrap_or_else(|error| panic!("board: {}", error))
     } else {
@@ -119,12 +119,14 @@ fn main() {
 
     let hand = Hand::try_from(args.hand).unwrap_or_else(|error| panic!("hand: {}", error));
 
-    let plays = board.find_possible_plays(&wordlist, hand);
+    // let plays = board.find_possible_plays(&wordlist, hand);
+    //
+    // let best_play = plays
+    //     .iter()
+    //     .map(|play| (board.score_play(play), play))
+    //     .max_by(|a, b| a.0.cmp(&b.0));
 
-    let best_play = plays
-        .iter()
-        .map(|play| (board.score_play(play), play))
-        .max_by(|a, b| a.0.cmp(&b.0));
+    let best_play = board.find_best_play(&wordlist, hand);
 
     if let Some((score, play)) = best_play {
         println!("{} {}", score, play.word);

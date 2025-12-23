@@ -1,3 +1,5 @@
+use crate::{read_board_string, read_wordlist};
+
 use super::*;
 
 #[test]
@@ -327,6 +329,8 @@ fn find_starting_plays() {
             ],
             hand: Hand::from(['M', 'L', 'L']),
             orientation: Orientation::Horizontal,
+            start_coordinates: Coordinates::new(7, 4),
+            end_coordinates: Coordinates::new(7, 7),
         },
         Play {
             word: String::from("WORD"),
@@ -338,6 +342,8 @@ fn find_starting_plays() {
             ],
             hand: Hand::from(['M', 'L', 'L']),
             orientation: Orientation::Horizontal,
+            start_coordinates: Coordinates::new(7, 5),
+            end_coordinates: Coordinates::new(7, 8),
         },
         Play {
             word: String::from("WORD"),
@@ -349,6 +355,8 @@ fn find_starting_plays() {
             ],
             hand: Hand::from(['M', 'L', 'L']),
             orientation: Orientation::Horizontal,
+            start_coordinates: Coordinates::new(7, 6),
+            end_coordinates: Coordinates::new(7, 9),
         },
         Play {
             word: String::from("WORD"),
@@ -360,6 +368,8 @@ fn find_starting_plays() {
             ],
             hand: Hand::from(['M', 'L', 'L']),
             orientation: Orientation::Horizontal,
+            start_coordinates: Coordinates::new(7, 7),
+            end_coordinates: Coordinates::new(7, 10),
         },
     ]);
 
@@ -405,6 +415,8 @@ fn find_extension_plays_horizontal() {
             tiles: vec![Tile::new('S', Coordinates::new(3, 3), false)],
             hand: Hand::from(['P', 'A', 'S', 'M', 'L', 'L']),
             orientation: Orientation::Horizontal,
+            start_coordinates: Coordinates::new(3, 3),
+            end_coordinates: Coordinates::new(3, 7),
         },
         Play {
             word: String::from("PASSWORD"),
@@ -416,12 +428,16 @@ fn find_extension_plays_horizontal() {
             ],
             hand: Hand::from(['M', 'L', 'L']),
             orientation: Orientation::Horizontal,
+            start_coordinates: Coordinates::new(3, 0),
+            end_coordinates: Coordinates::new(3, 7),
         },
         Play {
             word: String::from("WORDS"),
             tiles: vec![Tile::new('S', Coordinates::new(3, 8), false)],
             hand: Hand::from(['P', 'A', 'S', 'M', 'L', 'L']),
             orientation: Orientation::Horizontal,
+            start_coordinates: Coordinates::new(3, 4),
+            end_coordinates: Coordinates::new(3, 8),
         },
     ]);
 
@@ -467,6 +483,8 @@ fn find_extension_plays_vertical() {
             tiles: vec![Tile::new('S', Coordinates::new(3, 3), false)],
             hand: Hand::from(['P', 'A', 'S', 'M', 'L', 'L']),
             orientation: Orientation::Vertical,
+            start_coordinates: Coordinates::new(3, 3),
+            end_coordinates: Coordinates::new(7, 3),
         },
         Play {
             word: String::from("PASSWORD"),
@@ -478,12 +496,16 @@ fn find_extension_plays_vertical() {
             ],
             hand: Hand::from(['M', 'L', 'L']),
             orientation: Orientation::Vertical,
+            start_coordinates: Coordinates::new(0, 3),
+            end_coordinates: Coordinates::new(7, 3),
         },
         Play {
             word: String::from("WORDS"),
             tiles: vec![Tile::new('S', Coordinates::new(8, 3), false)],
             hand: Hand::from(['P', 'A', 'S', 'M', 'L', 'L']),
             orientation: Orientation::Vertical,
+            start_coordinates: Coordinates::new(4, 3),
+            end_coordinates: Coordinates::new(8, 3),
         },
     ]);
 
@@ -542,6 +564,8 @@ fn find_extension_plays_skewer_before() {
         ],
         hand: Hand::from(['A', 'K', 'E', 'Y']),
         orientation: Orientation::Horizontal,
+        start_coordinates: Coordinates::new(3, 0),
+        end_coordinates: Coordinates::new(3, 7),
     }]);
 
     let result = board.find_extension_plays(&board_word, hand, &wordlist);
@@ -599,6 +623,8 @@ fn find_extension_plays_skewer_after() {
         ],
         hand: Hand::from(['A', 'I', 'N', 'G']),
         orientation: Orientation::Horizontal,
+        start_coordinates: Coordinates::new(3, 4),
+        end_coordinates: Coordinates::new(3, 11),
     }]);
 
     let result = board.find_extension_plays(&board_word, hand, &wordlist);
@@ -652,6 +678,8 @@ fn find_extension_plays_combine() {
         tiles: vec![Tile::new('S', Coordinates::new(6, 1), false)],
         hand: Hand::from(['A', 'B', 'C', 'D', 'E', 'F']),
         orientation: Orientation::Vertical,
+        start_coordinates: Coordinates::new(1, 1),
+        end_coordinates: Coordinates::new(10, 1),
     }]);
 
     let result = board.find_extension_plays(&board_word, hand, &wordlist);
@@ -679,6 +707,8 @@ fn find_hook_plays() {
         tiles: vec![Tile::new('S', Coordinates::new(7, 8), false)],
         hand: Hand::from(['L', 'A', 'S', 'O', 'A', 'F']),
         orientation: Orientation::Vertical,
+        start_coordinates: Coordinates::new(3, 8),
+        end_coordinates: Coordinates::new(7, 8),
     };
 
     let wordlist = HashSet::from([
@@ -701,6 +731,8 @@ fn find_hook_plays() {
             ],
             hand: Hand::from(['A', 'F']),
             orientation: Orientation::Horizontal,
+            start_coordinates: Coordinates::new(7, 6),
+            end_coordinates: Coordinates::new(7, 10),
         },
         Play {
             word: String::from("LASSO"),
@@ -713,6 +745,8 @@ fn find_hook_plays() {
             ],
             hand: Hand::from(['A', 'F']),
             orientation: Orientation::Horizontal,
+            start_coordinates: Coordinates::new(7, 5),
+            end_coordinates: Coordinates::new(7, 9),
         },
         Play {
             word: String::from("LOAFS"),
@@ -725,6 +759,8 @@ fn find_hook_plays() {
             ],
             hand: Hand::from(['S', 'A']),
             orientation: Orientation::Horizontal,
+            start_coordinates: Coordinates::new(7, 4),
+            end_coordinates: Coordinates::new(7, 8),
         },
     ]);
 
@@ -763,6 +799,8 @@ fn find_hook_plays_skewer() {
         tiles: vec![Tile::new('S', Coordinates::new(4, 6), false)],
         hand: Hand::from(['L', 'A', 'S', 'O', 'A', 'F']),
         orientation: Orientation::Vertical,
+        start_coordinates: Coordinates::new(0, 6),
+        end_coordinates: Coordinates::new(4, 6),
     };
 
     let wordlist = HashSet::from([
@@ -808,6 +846,8 @@ fn find_hook_plays_long_skewer() {
         tiles: vec![Tile::new('S', Coordinates::new(4, 6), false)],
         hand: Hand::from(['L', 'A', 'S', 'O', 'A', 'F']),
         orientation: Orientation::Vertical,
+        start_coordinates: Coordinates::new(0, 6),
+        end_coordinates: Coordinates::new(4, 6),
     };
 
     let wordlist = HashSet::from([
@@ -859,6 +899,8 @@ fn find_perpendicular_plays() {
         ],
         hand: Hand::from(['I', 'A', 'L', 'Z']),
         orientation: Orientation::Horizontal,
+        start_coordinates: Coordinates::new(1, 5),
+        end_coordinates: Coordinates::new(1, 8),
     }]);
 
     assert_eq!(result, expected);
@@ -884,6 +926,8 @@ fn find_parallel_plays() {
         tiles: vec![Tile::new('F', Coordinates::new(1, 7), false)],
         hand: Hand::from(['E', 'A', 'R', 'A', 'B', 'C']),
         orientation: Orientation::Horizontal,
+        start_coordinates: Coordinates::new(1, 6),
+        end_coordinates: Coordinates::new(1, 7),
     };
 
     let wordlist = HashSet::from([
@@ -906,6 +950,8 @@ fn find_parallel_plays() {
         ],
         hand: Hand::from(['A', 'B', 'C']),
         orientation: Orientation::Vertical,
+        start_coordinates: Coordinates::new(1, 7),
+        end_coordinates: Coordinates::new(4, 7),
     }]);
 
     assert_eq!(result, expected);
@@ -930,6 +976,8 @@ fn score_play() {
         tiles: vec![Tile::new('D', Coordinates::new(3, 6), false)],
         hand: Hand::from(['A', 'B', 'C', 'D', 'E', 'F']),
         orientation: Orientation::Vertical,
+        start_coordinates: Coordinates::new(0, 6),
+        end_coordinates: Coordinates::new(3, 6),
     };
 
     assert_eq!(8, board.score_play(&play));
@@ -954,6 +1002,8 @@ fn score_play_with_double_letter_bonus() {
         tiles: vec![Tile::new('D', Coordinates::new(2, 6), false)],
         hand: Hand::from(['A', 'B', 'C', 'D', 'E', 'F']),
         orientation: Orientation::Horizontal,
+        start_coordinates: Coordinates::new(2, 3),
+        end_coordinates: Coordinates::new(2, 6),
     };
 
     assert_eq!(10, board.score_play(&play));
@@ -978,6 +1028,8 @@ fn score_play_with_triple_letter_bonus() {
         tiles: vec![Tile::new('D', Coordinates::new(5, 9), false)],
         hand: Hand::from(['A', 'B', 'C', 'D', 'E', 'F']),
         orientation: Orientation::Horizontal,
+        start_coordinates: Coordinates::new(5, 6),
+        end_coordinates: Coordinates::new(5, 9),
     };
 
     assert_eq!(12, board.score_play(&play));
@@ -988,9 +1040,9 @@ fn score_play_with_double_word_bonus() {
     let mut board = Board::new();
 
     let tiles = vec![
-        Tile::new('W', Coordinates::new(11, 4), false),
-        Tile::new('O', Coordinates::new(11, 5), false),
-        Tile::new('R', Coordinates::new(11, 6), false),
+        Tile::new('O', Coordinates::new(11, 4), false),
+        Tile::new('R', Coordinates::new(11, 5), false),
+        Tile::new('D', Coordinates::new(11, 6), false),
     ];
 
     for tile in &tiles {
@@ -999,9 +1051,11 @@ fn score_play_with_double_word_bonus() {
 
     let play = Play {
         word: String::from("WORD"),
-        tiles: vec![Tile::new('D', Coordinates::new(11, 3), false)],
+        tiles: vec![Tile::new('W', Coordinates::new(11, 3), false)],
         hand: Hand::from(['A', 'B', 'C', 'D', 'E', 'F']),
         orientation: Orientation::Horizontal,
+        start_coordinates: Coordinates::new(11, 3),
+        end_coordinates: Coordinates::new(11, 6),
     };
 
     assert_eq!(16, board.score_play(&play));
@@ -1026,9 +1080,83 @@ fn score_play_with_triple_word_bonus() {
         tiles: vec![Tile::new('D', Coordinates::new(14, 14), false)],
         hand: Hand::from(['A', 'B', 'C', 'D', 'E', 'F']),
         orientation: Orientation::Horizontal,
+        start_coordinates: Coordinates::new(14, 11),
+        end_coordinates: Coordinates::new(14, 14),
     };
 
     assert_eq!(24, board.score_play(&play));
+}
+
+#[test]
+fn score_play_with_no_crosswords() {
+    let mut board = Board::new();
+
+    let cave_tiles = vec![
+        Tile::new('C', Coordinates::new(0, 7), false),
+        Tile::new('A', Coordinates::new(0, 8), false),
+        Tile::new('V', Coordinates::new(0, 9), false),
+        Tile::new('E', Coordinates::new(0, 10), false),
+    ];
+
+    let van_tiles = vec![
+        Tile::new('V', Coordinates::new(0, 9), false),
+        Tile::new('A', Coordinates::new(1, 9), false),
+        Tile::new('N', Coordinates::new(2, 9), false),
+    ];
+
+    let treason_tiles = vec![
+        Tile::new('T', Coordinates::new(2, 7), false),
+        Tile::new('R', Coordinates::new(3, 7), false),
+        Tile::new('E', Coordinates::new(4, 7), false),
+        Tile::new('A', Coordinates::new(5, 7), false),
+        Tile::new('S', Coordinates::new(6, 7), false),
+        Tile::new('O', Coordinates::new(7, 7), false),
+        Tile::new('N', Coordinates::new(8, 7), false),
+    ];
+
+    let yen_tiles = vec![
+        Tile::new('Y', Coordinates::new(2, 10), false),
+        Tile::new('E', Coordinates::new(3, 10), true),
+        Tile::new('N', Coordinates::new(4, 10), false),
+    ];
+
+    let evil_tiles = vec![
+        Tile::new('E', Coordinates::new(3, 10), true),
+        Tile::new('V', Coordinates::new(3, 11), false),
+        Tile::new('I', Coordinates::new(3, 12), false),
+        Tile::new('L', Coordinates::new(3, 13), false),
+    ];
+
+    for tile in &cave_tiles {
+        board.insert_tile(*tile);
+    }
+
+    for tile in &van_tiles {
+        board.insert_tile(*tile);
+    }
+
+    for tile in &treason_tiles {
+        board.insert_tile(*tile);
+    }
+
+    for tile in &yen_tiles {
+        board.insert_tile(*tile);
+    }
+
+    for tile in &evil_tiles {
+        board.insert_tile(*tile);
+    }
+
+    let play = Play {
+        word: String::from("TINY"),
+        tiles: vec![Tile::new('I', Coordinates::new(2, 8), false)],
+        hand: Hand::from(['A', 'B', 'C', 'D', 'E']),
+        orientation: Orientation::Horizontal,
+        start_coordinates: Coordinates::new(2, 7),
+        end_coordinates: Coordinates::new(2, 10),
+    };
+
+    assert_eq!(8, board.score_play(&play));
 }
 
 #[test]
@@ -1096,7 +1224,62 @@ fn score_play_with_crosswords() {
         tiles: vec![Tile::new('I', Coordinates::new(2, 8), false)],
         hand: Hand::from(['A', 'B', 'C', 'D', 'E']),
         orientation: Orientation::Horizontal,
+        start_coordinates: Coordinates::new(2, 7),
+        end_coordinates: Coordinates::new(2, 10),
     };
 
-    assert_eq!(26, board.score_play(&play));
+    assert_eq!(8, board.score_play(&play));
+}
+
+#[test]
+fn puzzle() {
+    let board_string = r###"
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ E
+_ _ _ _ _ _ _ _ _ _ _ R _ _ A
+_ _ _ _ _ _ _ _ _ _ _ U M _ S
+_ _ _ _ _ _ _ _ _ _ _ B A H T
+_ _ _ _ _ _ _ _ _ _ _ B _ A _
+_ _ _ _ _ J A M _ _ _ E _ Z A
+_ _ _ _ _ _ L O X _ _ R _ A W
+_ _ _ _ _ _ _ P I N K Y _ R E
+_ _ I G N I T E S _ I _ _ D _
+_ _ _ _ _ _ _ _ _ _ N _ E _ _
+_ _ _ _ _ _ _ _ _ _ G _ A _ _
+_ _ _ _ _ _ _ _ _ _ L _ G _ _
+_ _ _ _ _ _ _ _ _ _ I _ L _ _
+_ R O O F E D _ _ _ E _ E _ _
+_ _ _ _ _ R E Q U I R E D _ _
+    "###;
+
+    let board = read_board_string(board_string);
+
+    let wordlist = read_wordlist(format!(
+        "{}/wordlists/NWL2020.txt",
+        std::env::var("CARGO_MANIFEST_DIR").unwrap()
+    ))
+    .unwrap();
+
+    let hand = Hand::from(['H', 'A', 'P', 'L', 'Y', 'E', 'T']);
+
+    let result = board.find_best_play(&wordlist, hand).unwrap();
+
+    let expected_score = 94;
+    let expected_play = Play {
+        word: String::from("HAPHAZARDLY"),
+        tiles: vec![
+            Tile::new('H', Coordinates::new(0, 13), false),
+            Tile::new('A', Coordinates::new(1, 13), false),
+            Tile::new('P', Coordinates::new(2, 13), false),
+            Tile::new('L', Coordinates::new(9, 13), false),
+            Tile::new('Y', Coordinates::new(10, 13), false),
+        ],
+        hand: Hand::from(['E', 'T']),
+        orientation: Orientation::Vertical,
+        start_coordinates: Coordinates::new(0, 13),
+        end_coordinates: Coordinates::new(10, 13),
+    };
+
+    let expected = (expected_score, expected_play);
+
+    assert_eq!(result, expected);
 }

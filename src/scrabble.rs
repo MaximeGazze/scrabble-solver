@@ -257,21 +257,6 @@ pub struct Hand {
     letters: BTreeMap<char, u32>,
 }
 
-#[derive(Debug)]
-pub enum HandError {
-    InvalidLetter(char),
-}
-
-impl std::fmt::Display for HandError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::InvalidLetter(c) => write!(f, "invalid letter {}", c),
-        }
-    }
-}
-
-impl std::error::Error for HandError {}
-
 impl Hand {
     pub const fn new() -> Self {
         Self {
@@ -308,6 +293,12 @@ impl Hand {
     pub fn iter(&self) -> HandIterator<'_> {
         HandIterator::new(self)
     }
+
+    pub fn clone_without(&self, letter: &HandLetter) -> Self {
+        let mut new_hand = self.clone();
+        new_hand.remove_handletter(&letter);
+        new_hand
+    }
 }
 
 impl TryFrom<String> for Hand {
@@ -339,6 +330,21 @@ impl<const N: usize> From<[char; N]> for Hand {
     }
 }
 
+#[derive(Debug)]
+pub enum HandError {
+    InvalidLetter(char),
+}
+
+impl std::fmt::Display for HandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidLetter(c) => write!(f, "invalid letter {}", c),
+        }
+    }
+}
+
+impl std::error::Error for HandError {}
+
 pub struct HandIterator<'a> {
     chars: std::collections::btree_map::Iter<'a, char, u32>,
     current_char: char,
@@ -368,6 +374,7 @@ impl<'a> Iterator for HandIterator<'a> {
             if next_wildcard_char >= 'Z' {
                 self.wildcard_char = None;
             } else {
+                self.wildcard_char = Some(next_wildcard_char);
                 return Some(HandLetter {
                     letter: next_wildcard_char,
                     wildcard: true,
@@ -425,6 +432,8 @@ pub struct Play {
     tiles: Vec<Tile>,
     hand: Hand,
     orientation: Orientation,
+    start_coordinates: Coordinates,
+    end_coordinates: Coordinates,
 }
 
 impl Play {
@@ -579,11 +588,7 @@ impl Board {
     }
 
     pub fn score_play(&self, play: &Play) -> u32 {
-        let Some(first_tile) = play.tiles.first() else {
-            return 0;
-        };
-
-        self.score_play_with_crosswords_check(play, first_tile.coordinates, play.orientation, true)
+        self.score_play_with_crosswords_check(play, play.start_coordinates, play.orientation, true)
     }
 
     fn score_play_with_crosswords_check(
@@ -597,12 +602,13 @@ impl Board {
         let mut main_word_score = 0;
         let mut main_word_multiplier = 1;
 
-        while let Some(new_coordinates) =
-            coordinates.sub(1, orientation).filter(|new_coordinates| {
-                self.tile_at(*new_coordinates).is_some() || play.tile_at(*new_coordinates).is_some()
+        while coordinates
+            .sub(1, orientation)
+            .map_or(false, |new_coordinates| {
+                self.tile_at(new_coordinates).is_some() || play.tile_at(new_coordinates).is_some()
             })
         {
-            coordinates = new_coordinates;
+            coordinates.sub_mut(1, orientation);
         }
 
         loop {
@@ -637,7 +643,8 @@ impl Board {
                 }
             }
 
-            if check_for_crosswords
+            if play_tile.is_some()
+                && check_for_crosswords
                 && (self.tile_before(coordinates, !orientation).is_some()
                     || self.tile_after(coordinates, !orientation).is_some())
             {
@@ -690,41 +697,38 @@ impl Board {
     fn build_possible_plays(
         &self,
         play: Play,
-        first_tile_coordinates: Coordinates,
-        last_tile_coordinates: Coordinates,
         wordlist: &HashSet<String>,
         allow_skewer: bool,
         allow_long_skewer: bool,
     ) -> HashSet<Play> {
         let mut plays = HashSet::new();
-        let mut play_stack: Vec<(Play, Coordinates, Coordinates)> = Vec::new();
+        let mut play_stack = vec![play];
 
-        play_stack.push((play, first_tile_coordinates, last_tile_coordinates));
+        while let Some(current_play) = play_stack.pop() {
+            let orientation = current_play.orientation;
 
-        while let Some(play_context) = play_stack.pop() {
-            let (current_play, first_tile_coordinates, last_tile_coordinates) = play_context;
+            let prepend_out_of_bounds =
+                current_play.start_coordinates.sub(1, orientation).is_none();
+            let append_out_of_bounds = current_play.end_coordinates.add(1, orientation).is_none();
 
-            let prepend_out_of_bounds = first_tile_coordinates
-                .sub(1, current_play.orientation)
-                .is_none();
-            let append_out_of_bounds = last_tile_coordinates
-                .add(1, current_play.orientation)
-                .is_none();
-
-            let prepend_would_skewer = first_tile_coordinates
-                .sub(2, current_play.orientation)
+            let prepend_would_skewer = current_play
+                .start_coordinates
+                .sub(2, orientation)
                 .map_or(false, |coordinates| self.tile_at(coordinates).is_some());
-            let append_would_skewer = last_tile_coordinates
-                .add(2, current_play.orientation)
+            let append_would_skewer = current_play
+                .end_coordinates
+                .add(2, orientation)
                 .map_or(false, |coordinates| self.tile_at(coordinates).is_some());
 
             let prepend_would_long_skewer = prepend_would_skewer
-                && first_tile_coordinates
-                    .sub(3, current_play.orientation)
+                && current_play
+                    .start_coordinates
+                    .sub(3, orientation)
                     .map_or(false, |coordinates| self.tile_at(coordinates).is_some());
             let append_would_long_skewer = append_would_skewer
-                && last_tile_coordinates
-                    .add(3, current_play.orientation)
+                && current_play
+                    .end_coordinates
+                    .add(3, orientation)
                     .map_or(false, |coordinates| self.tile_at(coordinates).is_some());
 
             let allow_prepend = !prepend_out_of_bounds
@@ -741,68 +745,60 @@ impl Board {
 
                     if allow_prepend {
                         if let Some(new_coordinates) =
-                            first_tile_coordinates.sub(1, current_play.orientation)
+                            current_play.start_coordinates.sub(1, orientation)
                         {
                             let new_tile = Tile::new(letter, new_coordinates, wildcard);
 
-                            if self.validate_tile(&new_tile, !current_play.orientation, wordlist) {
-                                let mut new_hand = current_play.hand.clone();
-                                new_hand.remove_handletter(&hand_letter);
+                            if self.validate_tile(&new_tile, !orientation, wordlist) {
+                                let new_hand = current_play.hand.clone_without(&hand_letter);
 
                                 let mut new_play = Play {
                                     word: format!("{}{}", letter, current_play.word),
                                     tiles: [vec![new_tile], current_play.tiles.clone()].concat(),
                                     hand: new_hand,
-                                    orientation: current_play.orientation,
+                                    orientation,
+                                    start_coordinates: new_coordinates,
+                                    end_coordinates: current_play.end_coordinates,
                                 };
 
-                                let mut first_tile_coordinates = new_coordinates;
-                                while let Some(tile) = self
-                                    .tile_before(first_tile_coordinates, current_play.orientation)
+                                while let Some(tile) =
+                                    self.tile_before(new_play.start_coordinates, orientation)
                                 {
                                     new_play.word.insert(0, tile.letter);
-                                    first_tile_coordinates = tile.coordinates;
+                                    new_play.start_coordinates.sub_mut(1, orientation);
                                 }
 
-                                play_stack.push((
-                                    new_play,
-                                    first_tile_coordinates,
-                                    last_tile_coordinates,
-                                ));
+                                play_stack.push(new_play);
                             }
                         }
                     }
 
                     if allow_append {
                         if let Some(new_coordinates) =
-                            last_tile_coordinates.add(1, current_play.orientation)
+                            current_play.end_coordinates.add(1, orientation)
                         {
                             let new_tile = Tile::new(letter, new_coordinates, wildcard);
 
-                            if self.validate_tile(&new_tile, !current_play.orientation, wordlist) {
-                                let mut new_hand = current_play.hand.clone();
-                                new_hand.remove_handletter(&hand_letter);
+                            if self.validate_tile(&new_tile, !orientation, wordlist) {
+                                let new_hand = current_play.hand.clone_without(&hand_letter);
 
                                 let mut new_play = Play {
                                     word: format!("{}{}", current_play.word, letter),
                                     tiles: [current_play.tiles.clone(), vec![new_tile]].concat(),
                                     hand: new_hand,
-                                    orientation: current_play.orientation,
+                                    orientation,
+                                    start_coordinates: current_play.start_coordinates,
+                                    end_coordinates: new_coordinates,
                                 };
 
-                                let mut last_tile_coordinates = new_coordinates;
                                 while let Some(tile) =
-                                    self.tile_after(last_tile_coordinates, current_play.orientation)
+                                    self.tile_after(new_play.end_coordinates, orientation)
                                 {
                                     new_play.word.push(tile.letter);
-                                    last_tile_coordinates = tile.coordinates;
+                                    new_play.end_coordinates.add_mut(1, orientation);
                                 }
 
-                                play_stack.push((
-                                    new_play,
-                                    first_tile_coordinates,
-                                    last_tile_coordinates,
-                                ));
+                                play_stack.push(new_play);
                             }
                         }
                     }
@@ -826,24 +822,18 @@ impl Board {
             let letter = hand_letter.letter;
             let wildcard = hand_letter.wildcard;
 
-            let mut hand_clone = hand.clone();
-            hand_clone.remove_handletter(&hand_letter);
+            let hand_clone = hand.clone_without(&hand_letter);
 
             let play = Play {
                 word: letter.to_string(),
                 tiles: vec![Tile::new(letter, center_coordinates, wildcard)],
                 hand: hand_clone,
                 orientation: Orientation::Horizontal,
+                start_coordinates: center_coordinates,
+                end_coordinates: center_coordinates,
             };
 
-            plays.extend(self.build_possible_plays(
-                play,
-                center_coordinates,
-                center_coordinates,
-                wordlist,
-                false,
-                false,
-            ));
+            plays.extend(self.build_possible_plays(play, wordlist, false, false));
         }
 
         plays
@@ -855,32 +845,27 @@ impl Board {
         hand: Hand,
         wordlist: &HashSet<String>,
     ) -> HashSet<Play> {
-        let play = Play {
-            word: board_word.word.clone(),
-            tiles: vec![],
-            hand,
-            orientation: board_word.orientation,
-        };
-
-        let first_tile_coordinates = board_word
+        let start_coordinates = board_word
             .tiles
             .first()
             .expect("board word tiles should not be empty")
             .coordinates;
-        let last_tile_coordinates = board_word
+        let end_coordinates = board_word
             .tiles
             .last()
             .expect("board word tiles should not be empty")
             .coordinates;
 
-        self.build_possible_plays(
-            play,
-            first_tile_coordinates,
-            last_tile_coordinates,
-            wordlist,
-            true,
-            true,
-        )
+        let play = Play {
+            word: board_word.word.clone(),
+            tiles: vec![],
+            hand,
+            orientation: board_word.orientation,
+            start_coordinates,
+            end_coordinates,
+        };
+
+        self.build_possible_plays(play, wordlist, true, true)
     }
 
     fn find_hook_plays(&self, play: &Play, wordlist: &HashSet<String>) -> HashSet<Play> {
@@ -901,16 +886,11 @@ impl Board {
             tiles: play.tiles.clone(),
             hand: play.hand.clone(),
             orientation,
+            start_coordinates: tile.coordinates,
+            end_coordinates: tile.coordinates,
         };
 
-        self.build_possible_plays(
-            init_play,
-            tile.coordinates,
-            tile.coordinates,
-            wordlist,
-            false,
-            false,
-        )
+        self.build_possible_plays(init_play, wordlist, false, false)
     }
 
     fn find_perpendicular_plays(
@@ -932,16 +912,11 @@ impl Board {
                     tiles: vec![],
                     hand: hand.clone(),
                     orientation,
+                    start_coordinates: tile.coordinates,
+                    end_coordinates: tile.coordinates,
                 };
 
-                plays.extend(self.build_possible_plays(
-                    init_play,
-                    tile.coordinates,
-                    tile.coordinates,
-                    wordlist,
-                    true,
-                    false,
-                ));
+                plays.extend(self.build_possible_plays(init_play, wordlist, true, false));
             }
         }
 
@@ -966,16 +941,11 @@ impl Board {
             tiles: play.tiles.clone(),
             hand: play.hand.clone(),
             orientation,
+            start_coordinates: tile.coordinates,
+            end_coordinates: tile.coordinates,
         };
 
-        self.build_possible_plays(
-            init_play,
-            tile.coordinates,
-            tile.coordinates,
-            wordlist,
-            false,
-            false,
-        )
+        self.build_possible_plays(init_play, wordlist, false, false)
     }
 
     pub fn find_possible_plays(&self, wordlist: &HashSet<String>, hand: Hand) -> HashSet<Play> {
@@ -1015,6 +985,81 @@ impl Board {
         }
     }
 
+    pub fn find_best_play(&self, wordlist: &HashSet<String>, hand: Hand) -> Option<(u32, Play)> {
+        let mut best_play: Option<Play> = None;
+        let mut best_play_score = 0;
+
+        let current_board_words = self.board_words();
+
+        if current_board_words.is_empty() {
+            let starting_plays = self.find_starting_plays(hand, wordlist);
+
+            for play in starting_plays {
+                let score = self.score_play(&play);
+                if score > best_play_score {
+                    best_play = Some(play);
+                    best_play_score = score;
+                }
+            }
+        } else {
+            for current_board_word in current_board_words.iter() {
+                let extension_plays =
+                    self.find_extension_plays(current_board_word, hand.clone(), wordlist);
+
+                for play in extension_plays.iter() {
+                    let score = self.score_play(&play);
+                    if score > best_play_score {
+                        best_play = Some(play.clone());
+                        best_play_score = score;
+                    }
+                }
+
+                let hook_plays = extension_plays
+                    .iter()
+                    .filter(|play| play.len() == 1)
+                    .flat_map(|play| self.find_hook_plays(play, wordlist));
+
+                for play in hook_plays {
+                    let score = self.score_play(&play);
+                    if score > best_play_score {
+                        best_play = Some(play);
+                        best_play_score = score;
+                    }
+                }
+
+                let perpendicular_plays =
+                    self.find_perpendicular_plays(current_board_word, &hand, wordlist);
+
+                for play in perpendicular_plays.iter() {
+                    let score = self.score_play(&play);
+                    if score > best_play_score {
+                        best_play = Some(play.clone());
+                        best_play_score = score;
+                    }
+                }
+
+                let parallel_plays = perpendicular_plays
+                    .iter()
+                    .filter(|play| play.len() == 1)
+                    .flat_map(|play| self.find_parallel_plays(play, wordlist));
+
+                for play in parallel_plays {
+                    let score = self.score_play(&play);
+                    if score > best_play_score {
+                        best_play = Some(play);
+                        best_play_score = score;
+                    }
+                }
+            }
+        }
+
+        if let Some(play) = best_play {
+            Some((best_play_score, play))
+        } else {
+            None
+        }
+    }
+
     pub fn print_play(&self, play: &Play) {
         let first_tile_coordinates = play
             .tiles
@@ -1029,7 +1074,11 @@ impl Board {
 
         for coordinates in CoordinatesIterator::new() {
             if let Some(tile) = play.tile_at(coordinates) {
-                print!("{}", tile.letter.to_string().red());
+                if tile.wildcard {
+                    print!("{}", tile.letter.to_string().white().on_red());
+                } else {
+                    print!("{}", tile.letter.to_string().red());
+                }
             } else if let Some(tile) = self.tile_at(coordinates) {
                 let mut is_connected = false;
                 if coordinates.i >= first_tile_coordinates.i
@@ -1085,9 +1134,17 @@ impl Board {
                 };
 
                 if is_connected {
-                    print!("{}", tile.letter.to_string().yellow());
+                    if tile.wildcard {
+                        print!("{}", tile.letter.to_string().black().on_yellow());
+                    } else {
+                        print!("{}", tile.letter.to_string().yellow());
+                    }
                 } else {
-                    print!("{}", tile.letter);
+                    if tile.wildcard {
+                        print!("{}", tile.letter.to_string().black().on_white());
+                    } else {
+                        print!("{}", tile.letter);
+                    }
                 }
             } else {
                 print!("_");
