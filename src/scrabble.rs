@@ -10,6 +10,14 @@ mod tests;
 
 const BOARD_SIZE: usize = 15;
 
+pub enum SpecialTile {
+    Empty,
+    DoubleLetter,
+    TripleLetter,
+    DoubleWord,
+    TripleWord,
+}
+
 #[rustfmt::skip]
 const SPECIAL_TILE_BOARD: [[SpecialTile; BOARD_SIZE]; BOARD_SIZE] = {
     use SpecialTile::*;
@@ -48,24 +56,24 @@ impl Coordinates {
     pub fn add(&self, value: usize, orientation: Orientation) -> Option<Self> {
         match orientation {
             Orientation::Vertical => {
-                if self.i + value >= BOARD_SIZE {
-                    return None;
+                if self.i + value < BOARD_SIZE {
+                    Some(Self {
+                        i: self.i + value,
+                        j: self.j,
+                    })
+                } else {
+                    None
                 }
-
-                Some(Self {
-                    i: self.i + value,
-                    j: self.j,
-                })
             }
             Orientation::Horizontal => {
-                if self.j + value >= BOARD_SIZE {
-                    return None;
+                if self.j + value < BOARD_SIZE {
+                    Some(Self {
+                        i: self.i,
+                        j: self.j + value,
+                    })
+                } else {
+                    None
                 }
-
-                Some(Self {
-                    i: self.i,
-                    j: self.j + value,
-                })
             }
         }
     }
@@ -73,23 +81,23 @@ impl Coordinates {
     pub fn sub(&self, value: usize, orientation: Orientation) -> Option<Self> {
         match orientation {
             Orientation::Vertical => {
-                if value > self.i {
-                    None
-                } else {
+                if value <= self.i {
                     Some(Self {
                         i: self.i - value,
                         j: self.j,
                     })
+                } else {
+                    None
                 }
             }
             Orientation::Horizontal => {
-                if value > self.j {
-                    None
-                } else {
+                if value <= self.j {
                     Some(Self {
                         i: self.i,
                         j: self.j - value,
                     })
+                } else {
+                    None
                 }
             }
         }
@@ -98,19 +106,19 @@ impl Coordinates {
     pub fn add_mut(&mut self, value: usize, orientation: Orientation) -> bool {
         match orientation {
             Orientation::Vertical => {
-                if self.i + value >= BOARD_SIZE {
-                    false
-                } else {
+                if self.i + value < BOARD_SIZE {
                     self.i += value;
                     true
+                } else {
+                    false
                 }
             }
             Orientation::Horizontal => {
-                if self.j + value >= BOARD_SIZE {
-                    false
-                } else {
+                if self.j + value < BOARD_SIZE {
                     self.j += value;
                     true
+                } else {
+                    false
                 }
             }
         }
@@ -119,19 +127,19 @@ impl Coordinates {
     pub fn sub_mut(&mut self, value: usize, orientation: Orientation) -> bool {
         match orientation {
             Orientation::Vertical => {
-                if value > self.i {
-                    false
-                } else {
+                if value <= self.i {
                     self.i -= value;
                     true
+                } else {
+                    false
                 }
             }
             Orientation::Horizontal => {
-                if value > self.j {
-                    false
-                } else {
+                if value <= self.j {
                     self.j -= value;
                     true
+                } else {
+                    false
                 }
             }
         }
@@ -241,6 +249,14 @@ struct BoardWord {
 }
 
 impl BoardWord {
+    pub const fn new(word: String, tiles: Vec<Tile>, orientation: Orientation) -> Self {
+        Self {
+            word,
+            tiles,
+            orientation,
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.word.len()
     }
@@ -265,17 +281,16 @@ impl Hand {
     }
 
     pub fn insert(&mut self, letter: char) {
-        if let Some(entry_value) = self.letters.get_mut(&letter) {
-            *entry_value += 1
-        } else {
-            self.letters.insert(letter, 1);
-        }
+        assert!(letter.is_ascii_uppercase() || letter == '*');
+
+        self.letters
+            .entry(letter)
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
     }
 
     pub fn remove(&mut self, letter: &char) {
-        let count_entry = self.letters.get_mut(letter);
-
-        if let Some(count) = count_entry {
+        if let Some(count) = self.letters.get_mut(letter) {
             *count -= 1;
 
             if *count <= 0 {
@@ -318,15 +333,20 @@ impl TryFrom<String> for Hand {
     }
 }
 
-impl<const N: usize> From<[char; N]> for Hand {
-    fn from(value: [char; N]) -> Self {
+impl<const N: usize> TryFrom<[char; N]> for Hand {
+    type Error = HandError;
+
+    fn try_from(value: [char; N]) -> Result<Self, Self::Error> {
         let mut hand = Hand::new();
 
         for c in value {
-            hand.insert(c);
+            match c {
+                'A'..='Z' | '*' => hand.insert(c),
+                _ => return Err(HandError::InvalidLetter(c)),
+            }
         }
 
-        hand
+        Ok(hand)
     }
 }
 
@@ -382,46 +402,35 @@ impl<'a> Iterator for HandIterator<'a> {
             }
         }
 
-        if self.current_char_count > 0 {
+        let current_letter = if self.current_char_count > 0 {
             self.current_char_count -= 1;
 
-            return match self.current_char {
-                '*' => {
-                    self.wildcard_char = Some('A');
+            self.current_char
+        } else {
+            match self.chars.next() {
+                None => return None,
+                Some((letter, count)) => {
+                    self.current_char = *letter;
+                    self.current_char_count = count - 1;
 
-                    Some(HandLetter {
-                        letter: 'A',
-                        wildcard: true,
-                    })
-                }
-                letter => Some(HandLetter {
-                    letter,
-                    wildcard: false,
-                }),
-            };
-        }
-
-        match self.chars.next() {
-            None => None,
-            Some((letter, count)) => {
-                self.current_char = *letter;
-                self.current_char_count = count - 1;
-
-                match letter {
-                    '*' => {
-                        self.wildcard_char = Some('A');
-
-                        Some(HandLetter {
-                            letter: 'A',
-                            wildcard: true,
-                        })
-                    }
-                    letter => Some(HandLetter {
-                        letter: *letter,
-                        wildcard: false,
-                    }),
+                    *letter
                 }
             }
+        };
+
+        match current_letter {
+            '*' => {
+                self.wildcard_char = Some('A');
+
+                Some(HandLetter {
+                    letter: 'A',
+                    wildcard: true,
+                })
+            }
+            letter => Some(HandLetter {
+                letter,
+                wildcard: false,
+            }),
         }
     }
 }
@@ -446,14 +455,6 @@ impl Play {
             .iter()
             .find(|tile| tile.coordinates == coordinates)
     }
-}
-
-pub enum SpecialTile {
-    Empty,
-    DoubleLetter,
-    TripleLetter,
-    DoubleWord,
-    TripleWord,
 }
 
 fn score_letter(letter: char) -> u32 {
@@ -520,32 +521,18 @@ impl Board {
         mut coordinates: Coordinates,
         orientation: Orientation,
     ) -> Option<BoardWord> {
-        let mut board_word = BoardWord {
-            word: String::new(),
-            tiles: Vec::new(),
-            orientation,
-        };
+        let mut board_word = BoardWord::new(String::new(), Vec::new(), orientation);
 
-        match orientation {
-            Orientation::Vertical => {
-                while self.tile_above(coordinates).is_some() {
-                    coordinates.i -= 1;
-                }
-            }
-            Orientation::Horizontal => {
-                while self.tile_left(coordinates).is_some() {
-                    coordinates.j -= 1;
-                }
-            }
+        while self.tile_before(coordinates, orientation).is_some() {
+            coordinates.sub_mut(1, orientation);
         }
 
         while let Some(current_tile) = self.tile_at(coordinates) {
             board_word.word.push(current_tile.letter);
             board_word.tiles.push(*current_tile);
 
-            match orientation {
-                Orientation::Vertical => coordinates.i += 1,
-                Orientation::Horizontal => coordinates.j += 1,
+            if !coordinates.add_mut(1, orientation) {
+                break;
             }
         }
 
@@ -652,9 +639,8 @@ impl Board {
                     self.score_play_with_crosswords_check(play, coordinates, !orientation, false);
             }
 
-            match coordinates.add(1, orientation) {
-                None => break,
-                Some(new_coordinates) => coordinates = new_coordinates,
+            if !coordinates.add_mut(1, orientation) {
+                break;
             }
         }
 
